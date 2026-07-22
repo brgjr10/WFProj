@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Warframe Prime Tracker - Auto Updating</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="app.js"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen" x-data="tracker()" x-init="init()">
+  <div class="container mx-auto p-4">
+    <header class="mb-4 flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-blue-400">Warframe Prime Tracker</h1>
+      <div class="flex items-center space-x-4">
+        <span class="text-sm text-gray-400" x-show="lastUpdated" x-text="'Updated: ' + lastUpdated"></span>
+        <span x-show="pricesLoading" class="text-xs text-yellow-400">Loading prices...</span>
+        <button @click="refresh()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm">↻ Refresh</button>
+      </div>
+    </header>
+
+    <div x-show="loading" class="text-center py-8 text-lg">Loading warframe data...</div>
+    <div x-show="error" class="bg-red-800 p-3 rounded mb-4" x-text="error"></div>
+
+    <!-- Summary Stats -->
+    <div class="mb-4 grid grid-cols-4 gap-2 text-center text-xs">
+      <div class="bg-gray-800 p-2 rounded">
+        <div class="font-semibold">Base Frames Mastered</div>
+        <div class="text-lg font-bold" x-text="baseMastered + ' / 65'"></div>
+        <div x-text="(65 - baseMastered) + ' Missing'"></div>
+        <div class="text-yellow-400" x-text="baseCompletion + '%'"></div>
+      </div>
+      <div class="bg-gray-800 p-2 rounded">
+        <div class="font-semibold">Prime Frames Mastered</div>
+        <div class="text-lg font-bold" x-text="primeMastered + ' / 49'"></div>
+        <div x-text="(49 - primeMastered) + ' Missing'"></div>
+        <div class="text-yellow-400" x-text="primeCompletion + '%'"></div>
+      </div>
+      <div class="bg-gray-800 p-2 rounded">
+        <div class="font-semibold">Unique Warframe Completion</div>
+        <div class="text-lg font-bold" x-text="uniqueOwned + ' / 65'"></div>
+        <div x-text="(65 - uniqueOwned) + ' Missing'"></div>
+        <div class="text-green-400" x-text="uniqueCompletion + '%'"></div>
+      </div>
+      <div class="bg-gray-800 p-2 rounded">
+        <div class="font-semibold">Subsume Completion</div>
+        <div class="text-lg font-bold" x-text="subsumed + ' / 65'"></div>
+        <div x-text="(65 - subsumed) + ' Missing'"></div>
+        <div class="text-yellow-400" x-text="subsumedCompletion + '%'"></div>
+      </div>
+    </div>
+
+    <!-- Companion Summary -->
+    <div class="mb-4 grid grid-cols-4 gap-2 text-center text-xs">
+      <div class="bg-gray-800 p-2 rounded">
+        <div class="font-semibold">Nautilus</div>
+        <div class="text-lg font-bold" x-text="companions.nautilus + ' / 6'"></div>
+      </div>
+      <div class="bg-gray-800 p-2 rounded">
+        <div class="font-semibold">Carrier</div>
+        <div class="text-lg font-bold" x-text="companions.carrier + ' / 6'"></div>
+      </div>
+      <div class="bg-gray-800 p-2 rounded">
+        <div class="font-semibold">Dethcube</div>
+        <div class="text-lg font-bold" x-text="companions.dethcube + ' / 6'"></div>
+      </div>
+      <div class="bg-gray-800 p-2 rounded">
+        <div class="font-semibold">Helios</div>
+        <div class="text-lg font-bold" x-text="companions.helios + ' / 6'"></div>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full bg-gray-800 rounded text-xs">
+        <thead class="bg-gray-700">
+          <tr>
+            <th class="px-1 py-1 w-24">Base Frame</th>
+            <th class="px-1 py-1 w-28">Prime Frame</th>
+            <th class="px-1 py-1 w-6">#</th>
+            <th class="px-1 py-1 w-8">%</th>
+            <th class="px-1 py-1 w-6">Owned</th>
+            <th class="px-1 py-1 w-8">Mastered</th>
+            <th class="px-1 py-1 w-20">Subsumed</th>
+            <th class="px-1 py-1 w-12">Main</th>
+            <th class="px-1 py-1 w-12">Systems</th>
+            <th class="px-1 py-1 w-12">Neuro</th>
+            <th class="px-1 py-1 w-12">Chassis</th>
+            <th class="px-1 py-1 w-48">Acquisition</th>
+            <th class="px-1 py-1 w-6">Needed</th>
+            <th class="px-1 py-1 w-16">Nautilus</th>
+            <th class="px-1 py-1 w-16">Carrier</th>
+            <th class="px-1 py-1 w-16">Dethcube</th>
+            <th class="px-1 py-1 w-16">Helios</th>
+            <th class="px-1 py-1 w-16">Shade</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="wf in warframes" :key="wf.name">
+            <tr :class="(wf.primeMastered || wf.baseMastered || wf.subsumed) ? 'bg-green-900/20' : ''">
+              <td class="px-1 py-1 border-t border-gray-700 text-center font-semibold" x-text="wf.name"></td>
+              <td class="px-1 py-1 border-t border-gray-700 font-semibold" x-text="wf.prime ? wf.name + ' Prime' : 'No Prime'"></td>
+              <td class="px-1 py-1 border-t border-gray-700 text-center" x-text="wf.prime ? (wf.prime.partsOwned || 0) + '/4' : ''"></td>
+              <td class="px-1 py-1 border-t border-gray-700 text-center font-semibold" :class="wf.primeMastered ? 'text-green-400' : 'text-gray-400'" x-text="wf.prime ? (wf.prime.completion || 0) + '%' : ''"></td>
+              <td class="px-1 py-1 border-t border-gray-700 text-center" x-text="wf.ownedCount ? wf.ownedCount : ''"></td>
+              <td class="px-1 py-1 border-t border-gray-700 text-center">
+                <input type="checkbox" x-model="wf.primeMastered" class="w-3 h-3 cursor-pointer" :disabled="!wf.prime">
+              </td>
+              <td class="px-1 py-1 border-t border-gray-700 text-center">
+                <input type="checkbox" x-model="wf.subsumed" class="w-3 h-3 cursor-pointer">
+              </td>
+              <td class="px-1 py-1 border-t border-gray-700 text-center cursor-pointer" @click="wf.prime && togglePrimePart(wf, 'main')">
+                <template x-if="wf.prime && wf.prime.parts.main">
+                  <span class="text-green-400 font-bold">✓</span>
+                </template>
+                <template x-if="wf.prime && !wf.prime.parts.main">
+                  <span class="text-gray-500" x-text="wf.prime.prices.main != null ? wf.prime.prices.main + 'p' : 'X'"></span>
+                </template>
+              </td>
+              <td class="px-1 py-1 border-t border-gray-700 text-center cursor-pointer" @click="wf.prime && togglePrimePart(wf, 'systems')">
+                <template x-if="wf.prime && wf.prime.parts.systems">
+                  <span class="text-green-400 font-bold">✓</span>
+                </template>
+                <template x-if="wf.prime && !wf.prime.parts.systems">
+                  <span class="text-gray-500" x-text="wf.prime.prices.systems != null ? wf.prime.prices.systems + 'p' : 'X'"></span>
+                </template>
+              </td>
+              <td class="px-1 py-1 border-t border-gray-700 text-center cursor-pointer" @click="wf.prime && togglePrimePart(wf, 'neuroptics')">
+                <template x-if="wf.prime && wf.prime.parts.neuroptics">
+                  <span class="text-green-400 font-bold">✓</span>
+                </template>
+                <template x-if="wf.prime && !wf.prime.parts.neuroptics">
+                  <span class="text-gray-500" x-text="wf.prime.prices.neuroptics != null ? wf.prime.prices.neuroptics + 'p' : 'X'"></span>
+                </template>
+              </td>
+              <td class="px-1 py-1 border-t border-gray-700 text-center cursor-pointer" @click="wf.prime && togglePrimePart(wf, 'chassis')">
+                <template x-if="wf.prime && wf.prime.parts.chassis">
+                  <span class="text-green-400 font-bold">✓</span>
+                </template>
+                <template x-if="wf.prime && !wf.prime.parts.chassis">
+                  <span class="text-gray-500" x-text="wf.prime.prices.chassis != null ? wf.prime.prices.chassis + 'p' : 'X'"></span>
+                </template>
+              </td>
+              <td class="px-1 py-1 border-t border-gray-700 text-xs truncate" x-text="wf.prime ? wf.prime.acquisition : ''"></td>
+              <td class="px-1 py-1 border-t border-gray-700 text-center font-bold" x-text="wf.prime ? wf.prime.partsNeeded : ''"></td>
+              <td class="px-1 py-1 border-t border-gray-700 text-center">
+                <input type="checkbox" x-model="wf.companions.nautilus" class="w-3 h-3 cursor-pointer">
+              </td>
+              <td class="px-1 py-1 border-t border-gray-700 text-center">
+                <input type="checkbox" x-model="wf.companions.carrier" class="w-3 h-3 cursor-pointer">
+              </td>
+              <td class="px-1 py-1 border-t border-gray-700 text-center">
+                <input type="checkbox" x-model="wf.companions.dethcube" class="w-3 h-3 cursor-pointer">
+              </td>
+              <td class="px-1 py-1 border-t border-gray-700 text-center">
+                <input type="checkbox" x-model="wf.companions.helios" class="w-3 h-3 cursor-pointer">
+              </td>
+              <td class="px-1 py-1 border-t border-gray-700 text-center">
+                <input type="checkbox" x-model="wf.companions.shade" class="w-3 h-3 cursor-pointer">
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt-4 text-xs text-gray-500">
+      Live prices from Warframe.Market API. Prime sets have 4 parts: Main (Blueprint), Systems, Neuroptics, Chassis.
+    </div>
+  </div>
+</body></html>

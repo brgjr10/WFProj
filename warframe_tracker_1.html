@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Brodie's Warframe Tracker</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --border:#30363d; --text:#e6edf3; --muted:#8b949e;
+    --accent:#58a6ff; --good:#3fb950; --warn:#d29922; --plat:#7ee787; --rowalt:#1c2128;
+  }
+  *{box-sizing:border-box;}
+  body{background:var(--bg); color:var(--text); font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; margin:0; padding:24px;}
+  h1{font-size:1.5rem; margin-bottom:4px;}
+  h2.section{font-size:1.05rem; color:var(--accent); margin:36px 0 4px;}
+  .sub{color:var(--muted); margin-bottom:20px; font-size:0.88rem;}
+  .controls{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; align-items:center;}
+  input[type=text]{background:var(--panel); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:6px; min-width:220px;}
+  select{background:var(--panel); border:1px solid var(--border); color:var(--text); padding:8px; border-radius:6px;}
+  .stat-bar{display:flex; gap:16px; flex-wrap:wrap; margin-bottom:18px;}
+  .stat{background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:10px 16px; min-width:140px;}
+  .stat .num{font-size:1.4rem; font-weight:700;}
+  .stat .label{font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em;}
+  table{width:100%; border-collapse:collapse; margin-bottom:14px; font-size:0.85rem;}
+  #frameTable{table-layout:fixed;}
+  th{text-align:center; padding:6px 6px; border-bottom:2px solid var(--border); color:var(--muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:.03em;}
+  th.left{text-align:left;}
+  td{padding:6px 6px; border-bottom:1px solid var(--border); vertical-align:middle; text-align:center;}
+  td.left{text-align:left;}
+  tr.row:nth-child(even){background:var(--rowalt);}
+  tr.row.complete{opacity:0.5;}
+  tr.row.hidden{display:none;}
+  input[type=checkbox]{width:16px; height:16px; cursor:pointer; accent-color:var(--good);}
+  input[type=checkbox]:disabled{cursor:not-allowed; opacity:0.3;}
+  .name{font-weight:600;}
+  .partgroup{display:flex; flex-wrap:wrap; gap:4px 6px; justify-content:center; align-items:center; row-gap:2px;}
+  .partgroup label{display:flex; flex-direction:column; align-items:center; font-size:0.58rem; color:var(--muted); gap:1px; cursor:pointer; min-width:36px;}
+  .noprime{color:var(--muted); font-style:italic; font-size:0.8rem;}
+  .unreleased{color:var(--muted); font-size:0.7rem; font-style:italic;}
+  .progress{color:var(--warn); font-size:0.72rem;}
+  .btn{background:var(--panel); border:1px solid var(--border); color:var(--accent); padding:4px 8px; border-radius:5px; cursor:pointer; font-size:0.74rem; white-space:nowrap;}
+  .btn:hover{border-color:var(--accent);}
+  .btn:disabled{opacity:0.5; cursor:wait;}
+  .price{font-weight:700; color:var(--plat);}
+  .acq-cell{max-width:300px; font-size:0.78rem; text-align:left;}
+  .acq-cell .acq-static{color:var(--muted);}
+  .small{font-size:0.72rem; color:var(--muted);}
+  footer{color:var(--muted); font-size:0.78rem; margin-top:30px; border-top:1px solid var(--border); padding-top:14px;}
+  a{color:var(--accent);}
+  .player-header{display:flex; align-items:center; gap:12px; margin-bottom:16px;}
+  .player-header img{width:48px; height:48px; border-radius:50%; border:2px solid var(--border);}
+  .player-info{display:flex; flex-direction:column;}
+  .player-info .rank{font-size:0.8rem; color:var(--muted);}
+  .api-status{font-size:0.75rem; color:var(--muted); margin-left:auto;}
+  .api-status.error{color:#f85149;}
+  .api-status.ok{color:var(--good);}
+</style>
+</head>
+<body>
+
+<div class="player-header">
+  <img id="playerAvatar" src="" alt="Loading...">
+  <div class="player-info">
+    <h1 id="playerName">LOADING...</h1>
+    <h2 id="playerRank"></h2>
+  </div>
+  <span class="api-status" id="apiStatus"></span>
+</div>
+<div class="sub">Per-part checkboxes for base &amp; prime frames, companions, and sentinel weapons · live plat prices from warframe.market · progress saves automatically to your account</div>
+
+<div class="stat-bar" id="statBar"></div>
+
+<div class="controls">
+  <input type="text" id="search" placeholder="🔍 Search...">
+  <select id="filter">
+    <option value="all">Show all</option>
+    <option value="incomplete">Hide fully completed rows</option>
+    <option value="needsubsume">Needs subsume only</option>
+    <option value="needprime">Has unowned Prime parts only</option>
+  </select>
+  <button class="btn" id="resetBtn">Reset all checkboxes</button>
+  <button class="btn" id="apiUpdateBtn">Auto-update from API</button>
+  <span class="small" id="saveStatus"></span>
+</div>
+
+<h2 class="section">Warframes</h2>
+<table id="frameTable">
+  <colgroup>
+    <col style="width:11%">
+    <col style="width:9%">
+    <col style="width:15%">
+    <col style="width:11%">
+    <col style="width:15%">
+    <col style="width:9%">
+    <col style="width:7%">
+  </colgroup>
+  <thead>
+    <tr>
+      <th class="left">Base Frame</th>
+      <th>Missing</th>
+      <th>Base Parts<br><span class="small">BP · Sys · Neu · Cha</span></th>
+      <th class="left">Prime</th>
+      <th>Prime Parts<br><span class="small">BP · Sys · Neu · Cha</span></th>
+      <th>Missing</th>
+      <th>Subsumed</th>
+    </tr>
+  </thead>
+  <tbody id="frameBody"></tbody>
+</table>
+
+<h2 class="section">Companions</h2>
+<table id="companionTable">
+  <colgroup>
+    <col style="width:11%">
+    <col style="width:9%">
+    <col style="width:15%">
+    <col style="width:11%">
+    <col style="width:9%">
+    <col style="width:19%">
+  </colgroup>
+  <thead>
+    <tr>
+      <th class="left">Companion</th>
+      <th>Missing</th>
+      <th>Base Parts<br><span class="small">BP · Sys · Cer · Car</span></th>
+      <th class="left">Prime</th>
+      <th>Missing</th>
+      <th class="left">Acquisition / Farm Info</th>
+    </tr>
+  </thead>
+  <tbody id="companionBody"></tbody>
+</table>
+
+<h2 class="section">Sentinel Weapons</h2>
+<div class="sub" style="margin-bottom:10px;">Each sentinel's dedicated weapon. Weapon ownership follows companion ownership.</div>
+<table id="weaponTable">
+  <thead>
+    <tr>
+      <th class="left">Weapon</th>
+      <th class="left">Companion</th>
+      <th>Base Owned</th>
+      <th>Prime Owned</th>
+    </tr>
+  </thead>
+  <tbody id="weaponBody"></tbody>
+</table>
+
+<footer>
+  Plat prices: lowest current sell order for the relevant Set, pulled live from the
+  <a href="https://warframe.market" target="_blank">warframe.market</a> public API.
+  All checkbox states save automatically to your account via persistent storage.
+  "BP" = Main Blueprint. Unreleased primes are greyed out since they can't be owned yet.
+</footer>
+
+<script>
+/* ================= DATA ================= */
+function P(bp, sys, neu, cha){ return {bp, sys, neu, cha}; }
+function C(bp, sys, cer, car){ return {bp, sys, cer, car}; }
+const ALL_TRUE = P(true,true,true,true);
+const ALL_FALSE = P(false,false,false,false);
+
+const frames = [
+{base:"Ash", mastered:true, prime:"Ash Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Atlas", mastered:false, prime:"Atlas Prime", primeParts:P(true,true,true,false), progress:"75% parts", subsumed:false},
+{base:"Banshee", mastered:false, prime:"Banshee Prime", primeParts:P(true,false,true,false), progress:"50% parts", subsumed:false},
+{base:"Baruuk", mastered:false, prime:"Baruuk Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Vox Solaris (Fortuna) – Purchase all parts with Standing [Rank 3 - Little Duck]"},
+{base:"Caliban", mastered:false, prime:"Caliban Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Narmer Bounties (Plains of Eidolon & Orb Vallis)"},
+{base:"Chroma", mastered:true, prime:"Chroma Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Citrine", mastered:false, prime:"Citrine Prime", primeUnreleased:true, subsumed:false, acquisition:"Otok"},
+{base:"Cyte-09", mastered:false, prime:"Cyte-09 Prime", primeUnreleased:true, subsumed:false, acquisition:"1999 - Standing"},
+{base:"Dagath", mastered:true, prime:"Dagath Prime", primeUnreleased:true, subsumed:true},
+{base:"Dante", mastered:false, prime:"Dante Prime", primeUnreleased:true, subsumed:false, acquisition:"Sanctum"},
+{base:"Ember", mastered:true, prime:"Ember Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Equinox", mastered:false, prime:"Equinox Prime", primeParts:P(true,false,true,true), progress:"75% parts", subsumed:false},
+{base:"Excalibur", mastered:true, prime:"Excalibur Umbra", primeParts:ALL_TRUE, subsumed:true},
+{base:"Frost", mastered:false, prime:"Frost Prime", primeParts:P(false,true,true,true), progress:"75% parts", subsumed:true},
+{base:"Follie", mastered:false, prime:"Follie Prime", primeUnreleased:true, subsumed:true},
+{base:"Gara", mastered:false, prime:"Gara Prime", primeParts:P(true,true,false,false), progress:"50% parts", subsumed:false},
+{base:"Garuda", mastered:true, prime:"Garuda Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Gauss", mastered:false, prime:"Gauss Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Disruption missions (Ceres, Jupiter, Neptune, Sedna)"},
+{base:"Grendel", mastered:false, prime:"Grendel Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Key farm via Arbitration + Special Grendel Missions"},
+{base:"Gyre", mastered:false, prime:"Gyre Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Zariman Bounties / Missions"},
+{base:"Harrow", mastered:false, prime:"Harrow Prime", primeParts:P(true,false,true,true), progress:"75% parts", subsumed:false},
+{base:"Hildryn", mastered:false, prime:"Hildryn Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Purchased from Little Duck for 5,000 Standing & Exploiter Orb"},
+{base:"Hydroid", mastered:true, prime:"Hydroid Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Inaros", mastered:false, prime:"Inaros Prime", primeParts:P(true,true,false,true), progress:"75% parts", subsumed:false},
+{base:"Ivara", mastered:true, prime:"Ivara Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Jade", mastered:false, prime:"Jade Prime", primeUnreleased:true, subsumed:false, acquisition:"Ordis + Elevation Map"},
+{base:"Khora", mastered:true, prime:"Khora Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Koumei", mastered:false, prime:"Koumei Prime", primeUnreleased:true, subsumed:false, acquisition:"Koumei's Shrine"},
+{base:"Kullervo", mastered:true, prime:"Kullervo Prime", primeUnreleased:true, subsumed:true},
+{base:"Lavos", mastered:true, prime:"Lavos Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Limbo", mastered:false, prime:"Limbo Prime", primeParts:P(false,true,false,false), progress:"25% parts", subsumed:false},
+{base:"Loki", mastered:false, prime:"Loki Prime", primeParts:P(true,false,true,true), progress:"75% parts", subsumed:false},
+{base:"Mag", mastered:false, prime:"Mag Prime", primeParts:ALL_FALSE, progress:"0% parts", subsumed:false},
+{base:"Mesa", mastered:true, prime:"Mesa Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Mirage", mastered:true, prime:"Mirage Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Nekros", mastered:true, prime:"Nekros Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Nezha", mastered:true, prime:"Nezha Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Nidus", mastered:false, prime:"Nidus Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"The Glast Gambit Quest + Infested Salvage (Erzurum, Eris)"},
+{base:"Nokko", mastered:true, prime:"Nokko Prime", primeUnreleased:true, subsumed:true},
+{base:"Nova", mastered:true, prime:"Nova Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Nyx", mastered:false, prime:"Nyx Prime", primeParts:P(true,false,false,false), progress:"25% parts", subsumed:false},
+{base:"Oberon", mastered:true, prime:"Oberon Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Octavia", mastered:false, prime:"Octavia Prime", primeParts:ALL_FALSE, progress:"0% parts", subsumed:false},
+{base:"Oraxia", mastered:false, prime:"Oraxia Prime", primeUnreleased:true, subsumed:false, acquisition:"Duviri"},
+{base:"Protea", mastered:false, prime:"Protea Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Granum Void – Access via Treasurer + Corpus Ship missions"},
+{base:"Qorvex", mastered:false, prime:"Qorvex Prime", primeUnreleased:true, subsumed:false, acquisition:"Whispers in the Walls quest + Sanctum Anatomica Bounties"},
+{base:"Revenant", mastered:false, prime:"Revenant Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Plains of Eidolon Bounties – Rotation-specific"},
+{base:"Rhino", mastered:false, prime:"Rhino Prime", primeParts:ALL_FALSE, progress:"0% parts", subsumed:false},
+{base:"Saryn", mastered:true, prime:"Saryn Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Sirius & Orion", mastered:false, prime:"Sirius & Orion Prime", primeUnreleased:true, subsumed:false, acquisition:"Uranus Proxima Railjack Missions"},
+{base:"Sevagoth", mastered:false, prime:"Sevagoth Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Call of the Tempestarii quest"},
+{base:"Styanax", mastered:false, prime:"Styanax Prime", primeParts:ALL_FALSE, progress:"0% parts", subsumed:false},
+{base:"Temple", mastered:false, prime:"Temple Prime", primeUnreleased:true, subsumed:false, acquisition:"1999 - Beating Heartstrings"},
+{base:"Titania", mastered:false, prime:"Titania Prime", primeParts:P(false,false,true,true), progress:"50% parts", subsumed:false},
+{base:"Trinity", mastered:true, prime:"Trinity Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Uriel", mastered:false, prime:"Uriel Prime", primeUnreleased:true, subsumed:false, acquisition:"The Old Peace quest + Roathe's Oblivion on Infernium 21 of The Descendia"},
+{base:"Valkyr", mastered:true, prime:"Valkyr Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Vauban", mastered:false, prime:"Vauban Prime", primeParts:P(true,true,false,true), progress:"75% parts", subsumed:false},
+{base:"Volt", mastered:true, prime:"Volt Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Voruna", mastered:false, prime:"Voruna Prime", primeParts:P(false,true,false,false), progress:"25% parts", subsumed:false},
+{base:"Wisp", mastered:false, prime:"Wisp Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Ropalolyst Assassination Wisp Component"},
+{base:"Wukong", mastered:false, prime:"Wukong Prime", primeParts:ALL_FALSE, progress:"0% parts", subsumed:false},
+{base:"Xaku", mastered:false, prime:"Xaku Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Cambion Drift Bounties"},
+{base:"Yareli", mastered:false, prime:"Yareli Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"The Waverider quest"},
+{base:"Zephyr", mastered:false, prime:"Zephyr Prime", primeParts:P(false,false,true,true), progress:"50% parts", subsumed:false},
+];
+
+const companions = [
+{base:"Nautilus", prime:null, baseParts:P(true,false,true,false)},
+{base:"Carrier", prime:"Carrier Prime", baseParts:ALL_TRUE, primeParts:ALL_FALSE},
+{base:"Dethcube", prime:"Dethcube Prime", baseParts:ALL_TRUE, primeParts:ALL_FALSE},
+{base:"Helios", prime:"Helios Prime", baseParts:ALL_TRUE, primeParts:P(false,true,true,false)},
+{base:"Wyrm", prime:"Wyrm Prime", baseParts:ALL_TRUE, primeParts:ALL_FALSE},
+{base:"Shade", prime:"Prisma Shade", baseParts:ALL_TRUE, primeParts:P(true,false,true,false)},
+{base:"Taxon", prime:null, baseParts:ALL_TRUE},
+{base:"Diriga", prime:null, baseParts:ALL_TRUE},
+{base:"Djinn", prime:null, baseParts:ALL_TRUE},
+{base:"Oxylus", prime:null, baseParts:ALL_TRUE},
+];
+
+const weapons = [
+{name:"Verglas", companion:"Nautilus", prime:"Verglas Prime"},
+{name:"Sweeper Shotgun", companion:"Carrier", prime:"Sweeper Shotgun Prime"},
+{name:"Deth Machine Rifle", companion:"Dethcube", prime:"Deth Machine Rifle Prime"},
+{name:"Deconstructor", companion:"Helios", prime:"Deconstructor Prime"},
+{name:"Laser Rifle", companion:"Wyrm", prime:"Laser Rifle Prime"},
+{name:"Burst Laser", companion:"Shade", prime:"Prisma Burst Laser"},
+{name:"Artax", companion:"Taxon", prime:null},
+{name:"Vulklok Sniper Rifle", companion:"Diriga", prime:null},
+{name:"Stinger", companion:"Djinn", prime:null},
+{name:"Multron Burst Rifle", companion:"Oxylus", prime:null},
+];
+
+async function fetchPlayerData(){
+  try{
+    const cached = localStorage.getItem("warframe_player_cached");
+    if(cached){
+      const parsed = JSON.parse(cached);
+      document.getElementById("playerName").textContent = parsed.name || "<<ZIMA_USER>>666";
+      document.getElementById("playerRank").textContent = parsed.rank || "";
+      document.getElementById("playerAvatar").src = parsed.avatar || "";
+      return;
+    }
+    const res = await fetch("https://overframe.gg/players/<<ZIMA_USER>>666/pc/", {
+      headers: {"User-Agent": "Mozilla/5.0"}
+    });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const h1 = doc.querySelector("h1");
+    const h2 = doc.querySelector("h2");
+    const img = doc.querySelector('img[alt="Player Avatar"]');
+    const name = h1 ? h1.textContent.trim() : "Unknown";
+    const rank = h2 ? h2.textContent.trim() : "";
+    const avatar = img ? img.getAttribute("src") : "";
+    document.getElementById("playerName").textContent = name;
+    document.getElementById("playerRank").textContent = rank;
+    document.getElementById("playerAvatar").src = avatar || "";
+    try{
+      localStorage.setItem("warframe_player_cached", JSON.stringify({name, rank, avatar, time: Date.now()}));
+    }catch(e){}
+  }catch(e){
+    document.getElementById("playerName").textContent = "<<ZIMA_USER>>666";
+    document.getElementById("playerRank").textContent = "Player data unavailable";
+  }
+}
+
+/* ================= API AUTO-UPDATE ================= */
+const API_PLAYER_ID = "6846e0042d5bef72aa0d6866";
+const API_URL = `https://api.warframe.com/cdn/getProfileViewingData.php?playerId=${API_PLAYER_ID}`;
+
+const SUIT_NAME_MAP = {
+  "Excalibur": "Excalibur", "ExcaliburUmbra": "Excalibur",
+  "Temple": "Temple", "Wraith": "Sevagoth", "SevagothPrime": "Sevagoth",
+  "EntratiMech": "EntratiMech", "NechroTech": "EntratiMech",
+  "Dragon": "Chroma", "ChromaPrime": "Chroma",
+  "Necro": "Nekros", "NekrosPrime": "Nekros",
+  "Paladin": "Valkyr", "PaladinPrime": "Valkyr", "ValkyrPrime": "Valkyr",
+  "Geode": "Gyre", "GyrePrime": "Gyre",
+  "Berserker": "Valkyr",
+  "Volt": "Volt", "VoltPrime": "Volt",
+  "Priest": "Nezha", "Nezha": "Nezha", "NezhaPrime": "Nezha",
+  "Infestation": "Nidus", "InfestationPrime": "Nidus", "NidusPrime": "Nidus",
+  "Pagemaster": "Nova", "NovaPrime": "Nova",
+  "Ranger": "Ivara", "IvaraPrime": "Ivara",
+  "Pacifist": "Baruuk", "BaruukPrime": "Baruuk",
+  "Bard": "Garuda", "Garuda": "Garuda", "GarudaPrime": "Garuda",
+  "AntiMatter": "Nova", "Anti": "Nova",
+  "Runner": "Gauss", "GaussPrime": "Gauss",
+  "MonkeyKing": "Wukong", "WukongPrime": "Wukong",
+  "Banshee": "Banshee", "BansheePrime": "Banshee",
+  "Trapper": "Vauban", "VaubanPrime": "Vauban",
+  "Harlequin": "Mirage", "MiragePrime": "Mirage",
+  "Wisp": "Wisp", "WispPrime": "Wisp",
+  "Koumei": "Koumei", "KoumeiPrime": "Koumei",
+  "Sandman": "Inaros", "InarosPrime": "Inaros",
+  "Tengu": "Oberon", "OberonPrime": "Oberon",
+  "Saryn": "Saryn", "SarynPrime": "Saryn",
+  "Odalisk": "Protea", "ProteaPrime": "Protea",
+  "Pirate": "Hydroid", "HydroidPrime": "Hydroid",
+  "Loki": "Loki", "LokiPrime": "Loki",
+  "Mag": "Mag", "MagPrime": "Mag",
+  "Ember": "Ember", "EmberPrime": "Ember",
+  "Jade": "Jade", "JadePrime": "Jade",
+  "Trinity": "Trinity", "TrinityPrime": "Trinity",
+  "Frost": "Frost", "FrostPrime": "Frost",
+  "Rhino": "Rhino", "RhinoPrime": "Rhino",
+  "YinYang": "Mesa", "MesaPrime": "Mesa",
+  "Alchemist": "Lavos", "LavosPrime": "Lavos",
+  "ConcreteFrame": "Hildryn", "HildrynPrime": "Hildryn",
+  "Yareli": "Yareli", "YareliPrime": "Yareli",
+  "Frumentarius": "Equinox", "EquinoxPrime": "Equinox",
+  "Nokko": "Nokko", "NokkoPrime": "Nokko",
+  "Oraxia": "Oraxia", "OraxiaPrime": "Oraxia",
+  "Magician": "Mesa",
+  "Brawler": "Atlas", "AtlasPrime": "Atlas",
+  "Khora": "Khora", "KhoraPrime": "Khora",
+  "Dagath": "Dagath", "DagathPrime": "Dagath",
+  "Devourer": "Grendel", "GrendelPrime": "Grendel",
+  "Sentient": "Caliban", "CalibanPrime": "Caliban",
+  "Revenant": "Revenant", "RevenantPrime": "Revenant",
+  "Choir": "Octavia", "OctaviaPrime": "Octavia",
+  "BrokenFrame": "Xaku", "XakuPrime": "Xaku",
+  "Ninja": "Ash", "AshPrime": "Ash",
+  "IronFrame": "Sevagoth",
+  "PaxDuviricus": "Voruna", "VorunaPrime": "Voruna",
+  "Werewolf": "Voruna",
+  "Fairy": "Caitl",
+  "DemonFrame": "Qorvex", "QorvexPrime": "Qorvex",
+  "Hoplite": "Garuda",
+  "Cowgirl": "Mesa",
+  "Inkblot": "Styanax", "StyanaxPrime": "Styanax",
+  "SiriusOrion": "Sirius & Orion", "SiriusSuit": "Sirius & Orion",
+};
+
+const SENTINEL_MAP = {
+  "NautilusPrimeSentinelPowerSuit": { companion: "Nautilus", prime: true },
+  "DethCubePowerSuit": { companion: "Dethcube", prime: false },
+  "PrimeDethCubePowerSuit": { companion: "Dethcube", prime: true },
+  "CarrierPowerSuit": { companion: "Carrier", prime: false },
+  "PrimeCarrierPowerSuit": { companion: "Carrier", prime: true },
+  "WyrmPowerSuit": { companion: "Wyrm", prime: false },
+  "PrimeWyrmPowerSuit": { companion: "Wyrm", prime: true },
+  "ShadePowerSuit": { companion: "Shade", prime: false },
+  "PrismaShadePowerSuit": { companion: "Shade", prime: true },
+  "MeleePetPowerSuit": { companion: null, prime: false },
+  "ArcDronePowerSuit": { companion: null, prime: false },
+  "GubberPowerSuit": { companion: null, prime: false },
+  "RadarPowerSuit": { companion: null, prime: false },
+  "TnSentinelCrossPowerSuit": { companion: null, prime: false },
+};
+
+const SENTINEL_WEAPON_MAP = {
+  "Gremlin": { name: "Gremlin", companion: null },
+  "SentinelFreezeRayPrimeRifle": { name: "Freeze Ray Prime", companion: null },
+  "SentGlaiveWeapon": { name: "Glaive", companion: null },
+  "SentShotgun": { name: "Sweeper Shotgun", companion: "Carrier" },
+  "PrimeSentShotgun": { name: "Sweeper Shotgun", companion: "Carrier", prime: true },
+  "BurstLaserPistol": { name: "Burst Laser", companion: "Shade" },
+  "PrismaBurstLaserPistol": { name: "Burst Laser", companion: "Shade", prime: true },
+  "DethMachineRifle": { name: "Deth Machine Rifle", companion: "Dethcube" },
+  "PrimeDethMachineRifle": { name: "Deth Machine Rifle", companion: "Dethcube", prime: true },
+  "LaserRifle": { name: "Laser Rifle", companion: "Wyrm" },
+  "PrimeLaserRifle": { name: "Laser Rifle", companion: "Wyrm", prime: true },
+  "SentElecRailgun": { name: "Railgun", companion: null },
+  "SentBioWeapon": { name: "Bio Weapon", companion: null },
+};
+
+function apiNameToTrackerName(raw){
+  if (SUIT_NAME_MAP[raw]) return SUIT_NAME_MAP[raw];
+  const inTracker = frames.find(f => f.base.toLowerCase() === raw.toLowerCase() || f.prime.toLowerCase() === raw.toLowerCase());
+  if (inTracker) return inTracker.base;
+  const partial = frames.find(f => raw.toLowerCase().startsWith(f.base.toLowerCase()) || f.base.toLowerCase().startsWith(raw.toLowerCase()));
+  if (partial) return partial.base;
+  return null;
+}
+
+async function fetchApiOwnership(){
+  const statusEl = document.getElementById("apiStatus");
+  statusEl.className = "api-status";
+  statusEl.textContent = "Fetching API...";
+  try{
+    const cached = localStorage.getItem("warframe_api_ownership_cache");
+    if(cached){
+      try{
+        const parsed = JSON.parse(cached);
+        if(parsed && parsed.time && (Date.now() - parsed.time) < MARKET_CACHE_MS){
+          statusEl.className = "api-status ok";
+          statusEl.textContent = "Cached API data ✓";
+          setTimeout(() => { if(statusEl.textContent === "Cached API data ✓") statusEl.textContent = ""; }, 3000);
+          return parsed.data;
+        }
+      }catch(e){}
+    }
+    const res = await fetch(API_URL, { headers: {"User-Agent": "Mozilla/5.0"} });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const json = JSON.parse(text);
+    const xpInfo = json.Results[0].LoadOutInventory.XPInfo;
+
+    const ownedFrames = new Set();
+    const ownedFramePrimes = new Set();
+    const ownedCompanions = new Set();
+    const ownedCompanionPrimes = new Set();
+    const ownedSentinelWeapons = new Set();
+    const ownedSentinelWeaponPrimes = new Set();
+
+    xpInfo.forEach(item => {
+      const it = item.ItemType;
+      if (it.startsWith("/Lotus/Powersuits/")){
+        const parts = it.split("/");
+        const rawName = parts[parts.length - 2];
+        const trackerName = apiNameToTrackerName(rawName);
+        if (!trackerName) return;
+        const isPrime = rawName.includes("Prime") || rawName.includes("Umbra");
+        if (isPrime) ownedFramePrimes.add(trackerName);
+        else ownedFrames.add(trackerName);
+      }
+      if (it.startsWith("/Lotus/Types/Sentinels/SentinelPowersuits/")){
+        const rawName = it.split("/").pop();
+        const mapped = SENTINEL_MAP[rawName];
+        if (mapped && mapped.companion){
+          if (mapped.prime) ownedCompanionPrimes.add(mapped.companion);
+          else ownedCompanions.add(mapped.companion);
+        }
+      }
+      if (it.startsWith("/Lotus/Types/Sentinels/SentinelWeapons/")){
+        const rawName = it.split("/").pop();
+        const mapped = SENTINEL_WEAPON_MAP[rawName];
+        if (mapped){
+          if (mapped.prime) ownedSentinelWeaponPrimes.add(mapped.name);
+          else ownedSentinelWeapons.add(mapped.name);
+        }
+      }
+    });
+
+    const data = { ownedFrames, ownedFramePrimes, ownedCompanions, ownedCompanionPrimes, ownedSentinelWeapons, ownedSentinelWeaponPrimes };
+    try{
+      localStorage.setItem("warframe_api_ownership_cache", JSON.stringify({data, time: Date.now()}));
+    }catch(e){}
+    return data;
+  }catch(e){
+    statusEl.className = "api-status error";
+    statusEl.textContent = "API fetch failed: " + e.message;
+    return null;
+  }
+}
+
+function applyApiOwnership(data){
+  if (!data) return;
+  const { ownedFrames, ownedFramePrimes, ownedCompanions, ownedCompanionPrimes, ownedSentinelWeapons, ownedSentinelWeaponPrimes } = data;
+
+  frames.forEach(f => {
+    const baseId = "frame_" + f.base.replace(/[^a-zA-Z0-9]/g,"_") + "_base";
+    const primeId = "frame_" + f.base.replace(/[^a-zA-Z0-9]/g,"_") + "_prime";
+    if (ownedFrames.has(f.base)){
+      setVal(baseId + "_bp", true);
+      setVal(baseId + "_sys", true);
+      setVal(baseId + "_neu", true);
+      setVal(baseId + "_cha", true);
+    }
+    if (ownedFramePrimes.has(f.base) && !f.primeUnreleased){
+      setVal(primeId + "_bp", true);
+      setVal(primeId + "_sys", true);
+      setVal(primeId + "_neu", true);
+      setVal(primeId + "_cha", true);
+    }
+  });
+
+  companions.forEach(c => {
+    const baseId = "comp_" + c.base.replace(/[^a-zA-Z0-9]/g,"_") + "_base";
+    const primeId = "comp_" + c.base.replace(/[^a-zA-Z0-9]/g,"_") + "_prime";
+    if (ownedCompanions.has(c.base)){
+      setVal(baseId + "_bp", true);
+      setVal(baseId + "_sys", true);
+      setVal(baseId + "_cer", true);
+      setVal(baseId + "_car", true);
+    }
+    if (ownedCompanionPrimes.has(c.base) && c.prime){
+      setVal(primeId + "_bp", true);
+      setVal(primeId + "_sys", true);
+      setVal(primeId + "_cer", true);
+      setVal(primeId + "_car", true);
+    }
+  });
+
+  weapons.forEach(w => {
+    const baseKey = "weapon_" + w.name.replace(/[^a-zA-Z0-9]/g,"_") + "_owned";
+    const primeKey = "weapon_" + w.name.replace(/[^a-zA-Z0-9]/g,"_") + "_prime_owned";
+    if (ownedSentinelWeapons.has(w.name)) setVal(baseKey, true);
+    if (ownedSentinelWeaponPrimes.has(w.name)) setVal(primeKey, true);
+  });
+
+  renderFrames();
+  renderCompanions();
+  renderWeapons();
+  renderStats();
+}
+
+/* ================= MARKET API (FULL ITEM LIST) ================= */
+let marketItemCache = null;
+let marketCacheTime = 0;
+const MARKET_CACHE_MS = 1000 * 60 * 60 * 6;
+const MARKET_CACHE_KEY = "warframe_market_items_cache";
+const API_RATE_LIMIT_MS = 1000 * 60;
+let lastApiCall = 0;
+
+async function fetchMarketItems(){
+  if (marketItemCache && (Date.now() - marketCacheTime) < MARKET_CACHE_MS){
+    return marketItemCache;
+  }
+  try{
+    const now = Date.now();
+    if (now - lastApiCall < API_RATE_LIMIT_MS){
+      const stored = localStorage.getItem(MARKET_CACHE_KEY);
+      if (stored){
+        try{
+          const parsed = JSON.parse(stored);
+          if (parsed && (now - parsed.time < MARKET_CACHE_MS)){
+            marketItemCache = parsed.items;
+            marketCacheTime = parsed.time;
+            return marketItemCache;
+          }
+        }catch(e){}
+      }
+      return [];
+    }
+    lastApiCall = now;
+    const res = await fetch("https://api.warframe.market/v2/items", {
+      headers: {"Platform": "pc", "Language": "en"}
+    });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const items = (data.payload && data.payload.items) || (data.data && data.data.items) || [];
+    marketItemCache = items;
+    marketCacheTime = Date.now();
+    try{ localStorage.setItem(MARKET_CACHE_KEY, JSON.stringify({items, time: Date.now()})); }catch(e){}
+    return items;
+  }catch(e){
+    const stored = localStorage.getItem(MARKET_CACHE_KEY);
+    if (stored){
+      try{
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.items){
+          marketItemCache = parsed.items;
+          marketCacheTime = parsed.time;
+          return marketItemCache;
+        }
+      }catch(e){}
+    }
+    return [];
+  }
+}
+
+function findMarketItem(items, searchName){
+  const slug = marketSlug(searchName);
+  return items.find(it => {
+    const itSlug = marketSlug(it.name || it.item_name || it.slug || "");
+    return itSlug === slug || itSlug === slug + "_set";
+  });
+}
+
+async function fetchPlatPrice(itemName, el){
+  if(!itemName) return;
+  el.dataset.itemName = itemName;
+  if(el.dataset.priceCache){
+    el.innerHTML = `<span class="price">${el.dataset.priceCache}p</span> <button class="btn refresh-mini">↻</button>`;
+    el.querySelector(".refresh-mini").onclick = () => fetchPlatPrice(itemName, el.querySelector(".refresh-mini"));
+    return;
+  }
+  el.textContent = "...";
+  try{
+    const items = await fetchMarketItems();
+    const found = findMarketItem(items, itemName);
+    if (!found){
+      el.textContent = "—";
+      return;
+    }
+    const itemId = found.id || found.item_id || found.slug;
+    try{
+      const priceCache = localStorage.getItem(`warframe_price_${itemId}`);
+      if(priceCache){
+        const parsed = JSON.parse(priceCache);
+        if(parsed && parsed.price && (Date.now() - parsed.time) < MARKET_CACHE_MS){
+          el.dataset.priceCache = parsed.price;
+          el.innerHTML = `<span class="price">${parsed.price}p</span> <button class="btn refresh-mini">↻</button>`;
+          el.querySelector(".refresh-mini").onclick = () => fetchPlatPrice(itemName, el.querySelector(".refresh-mini"));
+          return;
+        }
+      }
+    }catch(e){}
+    try{
+      const res = await fetch(`https://api.warframe.market/v2/orders/item/${itemId}/top`, {
+        headers: {"Platform": "pc"}
+      });
+      if(!res.ok){ el.textContent = "—"; return; }
+      const data = await res.json();
+      const sellList = (data.payload && data.payload.sell) || (data.data && data.data.sell) || [];
+      const norm = sellList
+        .filter(o => !o.platform || o.platform === "pc")
+        .map(o => ({
+          platinum: o.platinum || o.price,
+          status: o.user ? o.user.status : (o.status || null)
+        }))
+        .filter(o => typeof o.platinum === "number");
+      const ingame = norm.filter(o => o.status === "ingame").sort((a,b)=>a.platinum-b.platinum);
+      const any = norm.sort((a,b)=>a.platinum-b.platinum);
+      const price = (ingame.length ? ingame[0].platinum : any[0]?.platinum) || null;
+      if(price !== null){
+        el.dataset.priceCache = price;
+        try{ localStorage.setItem(`warframe_price_${itemId}`, JSON.stringify({price, time: Date.now()})); }catch(e){}
+        el.innerHTML = `<span class="price">${price}p</span> <button class="btn refresh-mini">↻</button>`;
+        el.querySelector(".refresh-mini").onclick = () => fetchPlatPrice(itemName, el.querySelector(".refresh-mini"));
+      } else {
+        el.textContent = "—";
+      }
+    }catch(e){
+      el.textContent = "—";
+    }
+  }catch(e){
+    el.textContent = "—";
+  }
+}
+
+/* ================= STORAGE ================= */
+const STORE_KEY = "warframe_tracker_state_v2";
+let state = {};
+let saveTimer = null;
+let saveStatusEl = null;
+
+async function loadState(){
+  try{
+    const result = await window.storage.get(STORE_KEY, false);
+    return (result && result.value) ? JSON.parse(result.value) : {};
+  }catch(e){
+    return {};
+  }
+}
+function flagSaving(){
+  if(saveStatusEl) saveStatusEl.textContent = "Saving…";
+}
+function flagSaved(ok){
+  if(!saveStatusEl) return;
+  saveStatusEl.textContent = ok ? "Saved ✓" : "Save failed — will retry";
+  if(ok) setTimeout(()=>{ if(saveStatusEl.textContent === "Saved ✓") saveStatusEl.textContent = ""; }, 1500);
+}
+function saveStateNow(){
+  flagSaving();
+  window.storage.set(STORE_KEY, JSON.stringify(state), false)
+    .then(res => flagSaved(!!res))
+    .catch(() => flagSaved(false));
+}
+function saveState(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveStateNow, 400);
+}
+function getVal(id, fallback){ return (id in state) ? state[id] : fallback; }
+function setVal(id, val){ state[id] = val; saveState(); }
+
+function marketSlug(name){
+  return name.toLowerCase().replace(/&/g,"and").replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+}
+
+/* ================= RENDER HELPERS ================= */
+const partSuffix = {bp:"", sys:"_systems", neu:"_neuroptics", cha:"_chassis", cer:"_cerebral", car:"_carapace"};
+function partGroup(idPrefix, parts, disabled, labels, primeItemName){
+  const defaultLabels = [["bp","BP"],["sys","Sys"],["neu","Neu"],["cha","Cha"]];
+  const labelSet = labels || defaultLabels;
+  let html = `<div class="partgroup" data-prefix="${idPrefix}">`;
+  labelSet.forEach(([key,label]) => {
+    const checked = getVal(idPrefix+"_"+key, parts ? parts[key] : false);
+    const partSlug = primeItemName ? `${primeItemName}${partSuffix[key] || ""}_blueprint` : "";
+    const priceSpan = disabled ? "" : (primeItemName ? `<span class="price-inline" data-part-name="${partSlug}">💰</span>` : "");
+    html += `<label>${label}<input type="checkbox" data-key="${key}" ${checked?"checked":""} ${disabled?"disabled":""}>${priceSpan}</label>`;
+  });
+  html += `</div>`;
+  return html;
+}
+function wirePartGroup(container, idPrefix, onAnyChange){
+  container.querySelectorAll(`.partgroup[data-prefix="${idPrefix}"] input`).forEach(cb => {
+    cb.onchange = () => { setVal(idPrefix+"_"+cb.dataset.key, cb.checked); onAnyChange && onAnyChange(); };
+  });
+}
+function allPartsTrue(idPrefix, fallbackParts, disabled){
+  if(disabled) return false;
+  const keys = ["bp","sys","neu","cha","cer","car"];
+  return keys.filter(k => getVal(idPrefix+"_"+k, null) !== null).every(k => getVal(idPrefix+"_"+k, fallbackParts ? fallbackParts[k] : false));
+}
+function calcProgress(idPrefix){
+  const keys = ["bp","sys","neu","cha","cer","car"];
+  const relevantKeys = keys.filter(k => getVal(idPrefix+"_"+k, null) !== null);
+  const owned = relevantKeys.filter(k => getVal(idPrefix+"_"+k, false)).length;
+  return owned ? `${Math.round(owned / relevantKeys.length * 100)}% parts` : "";
+}
+function countMissingParts(idPrefix, parts, disabled){
+  if(disabled) return 0;
+  const keys = ["bp","sys","neu","cha","cer","car"];
+  const relevantKeys = keys.filter(k => parts && parts[k] !== undefined);
+  return relevantKeys.filter(k => !getVal(idPrefix+"_"+k, parts ? parts[k] : false)).length;
+}
+
+/* ================= RENDER: FRAMES ================= */
+function renderFrames(){
+  const tbody = document.getElementById("frameBody");
+  tbody.innerHTML = "";
+  frames.forEach(f => {
+    const baseId = "frame_" + f.base.replace(/[^a-zA-Z0-9]/g,"_") + "_base";
+    const primeId = "frame_" + f.base.replace(/[^a-zA-Z0-9]/g,"_") + "_prime";
+    const subKey = "frame_" + f.base.replace(/[^a-zA-Z0-9]/g,"_") + "_subsumed";
+    const subsumed = getVal(subKey, f.subsumed);
+
+    const baseOwned = allPartsTrue(baseId, ALL_TRUE, false);
+    const primeOwned = allPartsTrue(primeId, f.primeParts, f.primeUnreleased);
+    const complete = baseOwned && (f.primeUnreleased ? true : primeOwned) && subsumed;
+
+    const tr = document.createElement("tr");
+    tr.className = "row";
+    if(complete) tr.classList.add("complete");
+    tr.dataset.name = f.base.toLowerCase();
+    tr.dataset.needsubsume = (!subsumed) ? "1":"0";
+    tr.dataset.needprime = (!f.primeUnreleased && !primeOwned) ? "1":"0";
+    tr.dataset.complete = complete ? "1":"0";
+
+    const primeProgress = f.primeUnreleased ? "" : calcProgress(primeId);
+    const primeCellHtml = f.primeUnreleased
+      ? `<span class="name">${f.prime}</span><div class="unreleased">Unreleased</div>`
+      : `<span class="name">${f.prime}</span>${primeProgress ? `<div class="progress">${primeProgress}</div>`:""}`;
+
+    const baseMissing = countMissingParts(baseId, ALL_TRUE, false);
+    const primeMissing = f.primeUnreleased ? 0 : countMissingParts(primeId, f.primeParts, !!f.primeUnreleased);
+
+    tr.innerHTML = `
+      <td class="left"><span class="name">${f.base}</span></td>
+      <td class="left"><span class="small">${baseMissing} missing</span></td>
+      <td>${partGroup(baseId, ALL_TRUE, false)}</td>
+      <td class="left">${primeCellHtml}</td>
+      <td>${partGroup(primeId, f.primeParts, !!f.primeUnreleased)}</td>
+      <td class="left"><span class="small">${primeMissing} missing</span></td>
+      <td><input type="checkbox" class="chk-subsumed" ${subsumed?"checked":""}></td>
+    `;
+
+    wirePartGroup(tr, baseId, () => { renderFrames(); renderStats(); });
+    wirePartGroup(tr, primeId, () => { renderFrames(); renderStats(); });
+    tr.querySelector(".chk-subsumed").onchange = e => { setVal(subKey, e.target.checked); renderFrames(); renderStats(); };
+
+    tbody.appendChild(tr);
+  });
+  applyFilters();
+}
+
+/* ================= RENDER: COMPANIONS ================= */
+function companionLookup(baseName){
+  return companions.find(c => c.base === baseName);
+}
+function renderCompanions(){
+  const tbody = document.getElementById("companionBody");
+  tbody.innerHTML = "";
+  const compLabels = [["bp","BP"],["sys","Sys"],["cer","Cer"],["car","Car"]];
+  companions.forEach(c => {
+    const baseId = "comp_" + c.base.replace(/[^a-zA-Z0-9]/g,"_") + "_base";
+    const primeId = "comp_" + c.base.replace(/[^a-zA-Z0-9]/g,"_") + "_prime";
+
+    const tr = document.createElement("tr");
+    tr.className = "row";
+
+    const primeProgress = c.prime ? calcProgress(primeId) : "";
+    const primeCellHtml = c.prime ? `<span class="name">${c.prime}</span>${primeProgress ? `<div class="progress">${primeProgress}</div>`:""}` : `<span class="noprime">No Prime</span>`;
+
+    const baseMissing = countMissingParts(baseId, c.baseParts || ALL_TRUE, false);
+    const primeMissing = c.prime ? countMissingParts(primeId, c.primeParts || ALL_FALSE, false) : 0;
+
+    tr.innerHTML = `
+      <td class="left"><span class="name">${c.base}</span></td>
+      <td class="left"><span class="small">${baseMissing} missing</span></td>
+      <td>${partGroup(baseId, c.baseParts || ALL_TRUE, false, compLabels)}</td>
+      <td class="left">${primeCellHtml}</td>
+      <td class="left"><span class="small">${primeMissing} missing</span></td>
+      <td class="acq-cell left"><div class="acq-static small">No farm note saved</div></td>
+    `;
+    wirePartGroup(tr, baseId, () => renderWeapons());
+    if(c.prime) wirePartGroup(tr, primeId, () => renderWeapons());
+
+    tbody.appendChild(tr);
+  });
+}
+
+/* ================= RENDER: WEAPONS ================= */
+function renderWeapons(){
+  const tbody = document.getElementById("weaponBody");
+  tbody.innerHTML = "";
+  weapons.forEach(w => {
+    const c = companionLookup(w.companion);
+    const compBaseId = "comp_" + w.companion.replace(/[^a-zA-Z0-9]/g,"_") + "_base";
+    const compPrimeId = "comp_" + w.companion.replace(/[^a-zA-Z0-9]/g,"_") + "_prime";
+    const baseOwned = allPartsTrue(compBaseId, (c && c.baseParts) || ALL_TRUE, false);
+    const primeOwned = w.prime ? allPartsTrue(compPrimeId, (c && c.primeParts) || ALL_FALSE, false) : false;
+
+    const tr = document.createElement("tr");
+    tr.className = "row";
+    tr.innerHTML = `
+      <td class="left"><span class="name">${w.name}</span>${w.prime ? `<div class="small">${w.prime}</div>`:""}</td>
+      <td class="left">${w.companion}</td>
+      <td><input type="checkbox" class="chk-base" ${baseOwned?"checked":""} disabled title="Follows ${w.companion}'s base ownership"></td>
+      <td>${w.prime ? `<input type="checkbox" class="chk-prime" ${primeOwned?"checked":""} disabled title="Follows ${w.prime}'s ownership">` : `<span class="small">—</span>`}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ================= STATS / FILTERS ================= */
+function renderStats(){
+  const total = frames.length;
+  const baseOwnedCount = frames.filter(f => allPartsTrue("frame_"+f.base.replace(/[^a-zA-Z0-9]/g,"_")+"_base", ALL_TRUE, false)).length;
+  const primeable = frames.filter(f => !f.primeUnreleased).length;
+  const primeOwnedCount = frames.filter(f => !f.primeUnreleased && allPartsTrue("frame_"+f.base.replace(/[^a-zA-Z0-9]/g,"_")+"_prime", f.primeParts, false)).length;
+  const subsumedCount = frames.filter(f => getVal("frame_"+f.base.replace(/[^a-zA-Z0-9]/g,"_")+"_subsumed", f.subsumed)).length;
+
+  document.getElementById("statBar").innerHTML = `
+    <div class="stat"><div class="num">${baseOwnedCount} / ${total}</div><div class="label">Base Fully Built</div></div>
+    <div class="stat"><div class="num">${primeOwnedCount} / ${primeable}</div><div class="label">Primes Fully Built</div></div>
+    <div class="stat"><div class="num">${subsumedCount} / ${total}</div><div class="label">Subsumed</div></div>
+  `;
+}
+function applyFilters(){
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  const mode = document.getElementById("filter").value;
+  document.querySelectorAll("#frameBody tr.row").forEach(tr => {
+    let show = true;
+    if(q && !tr.dataset.name.includes(q)) show = false;
+    if(mode === "incomplete" && tr.dataset.complete === "1") show = false;
+    if(mode === "needsubsume" && tr.dataset.needsubsume === "0") show = false;
+    if(mode === "needprime" && tr.dataset.needprime === "0") show = false;
+    tr.classList.toggle("hidden", !show);
+  });
+}
+document.getElementById("search").addEventListener("input", applyFilters);
+document.getElementById("filter").addEventListener("change", applyFilters);
+document.getElementById("resetBtn").addEventListener("click", () => {
+  if(confirm("Reset all checkboxes back to unchecked? This clears your saved progress.")){
+    state = {};
+    window.storage.delete(STORE_KEY, false).catch(()=>{});
+    saveStateNow();
+    renderFrames(); renderCompanions(); renderWeapons(); renderStats();
+  }
+});
+document.getElementById("apiUpdateBtn").addEventListener("click", async () => {
+  const data = await fetchApiOwnership();
+  if(data){
+    applyApiOwnership(data);
+    const statusEl = document.getElementById("apiStatus");
+    statusEl.className = "api-status ok";
+    statusEl.textContent = "Updated from API ✓";
+    setTimeout(() => { if(statusEl.textContent === "Updated from API ✓") statusEl.textContent = ""; }, 3000);
+  }
+});
+
+(async function init(){
+  saveStatusEl = document.getElementById("saveStatus");
+  state = await loadState();
+  fetchPlayerData();
+  renderFrames();
+  renderCompanions();
+  renderWeapons();
+  renderStats();
+  const data = await fetchApiOwnership();
+  if(data){
+    applyApiOwnership(data);
+    const statusEl = document.getElementById("apiStatus");
+    statusEl.className = "api-status ok";
+    statusEl.textContent = "API loaded ✓";
+    setTimeout(() => { if(statusEl.textContent === "API loaded ✓") statusEl.textContent = ""; }, 3000);
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Brodie's Warframe Tracker</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --border:#30363d; --text:#e6edf3; --muted:#8b949e;
+    --accent:#58a6ff; --good:#3fb950; --warn:#d29922; --plat:#7ee787; --rowalt:#1c2128;
+  }
+  *{box-sizing:border-box;}
+  body{background:var(--bg); color:var(--text); font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; margin:0; padding:24px;}
+  h1{font-size:1.5rem; margin-bottom:4px;}
+  h2.section{font-size:1.05rem; color:var(--accent); margin:36px 0 4px;}
+  .sub{color:var(--muted); margin-bottom:20px; font-size:0.88rem;}
+  .controls{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; align-items:center;}
+  input[type=text]{background:var(--panel); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:6px; min-width:220px;}
+  select{background:var(--panel); border:1px solid var(--border); color:var(--text); padding:8px; border-radius:6px;}
+  .stat-bar{display:flex; gap:16px; flex-wrap:wrap; margin-bottom:18px;}
+  .stat{background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:10px 16px; min-width:140px;}
+  .stat .num{font-size:1.4rem; font-weight:700;}
+  .stat .label{font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em;}
+  table{width:100%; border-collapse:collapse; margin-bottom:14px; font-size:0.85rem;}
+  th{text-align:center; padding:6px 6px; border-bottom:2px solid var(--border); color:var(--muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:.03em;}
+  th.left{text-align:left;}
+  td{padding:6px 6px; border-bottom:1px solid var(--border); vertical-align:middle; text-align:center;}
+  td.left{text-align:left;}
+  tr.row:nth-child(even){background:var(--rowalt);}
+  tr.row.complete{opacity:0.5;}
+  tr.row.hidden{display:none;}
+  input[type=checkbox]{width:16px; height:16px; cursor:pointer; accent-color:var(--good);}
+  input[type=checkbox]:disabled{cursor:not-allowed; opacity:0.3;}
+  .name{font-weight:600;}
+  .partgroup{display:flex; gap:6px; justify-content:center; align-items:center;}
+  .partgroup label{display:flex; flex-direction:column; align-items:center; font-size:0.6rem; color:var(--muted); gap:2px; cursor:pointer;}
+  .noprime{color:var(--muted); font-style:italic; font-size:0.8rem;}
+  .unreleased{color:var(--muted); font-size:0.7rem; font-style:italic;}
+  .progress{color:var(--warn); font-size:0.72rem;}
+  .btn{background:var(--panel); border:1px solid var(--border); color:var(--accent); padding:4px 8px; border-radius:5px; cursor:pointer; font-size:0.74rem; white-space:nowrap;}
+  .btn:hover{border-color:var(--accent);}
+  .btn:disabled{opacity:0.5; cursor:wait;}
+  .price{font-weight:700; color:var(--plat);}
+  .acq-cell{max-width:300px; font-size:0.78rem; text-align:left;}
+  .acq-cell .acq-static{color:var(--muted);}
+  .small{font-size:0.72rem; color:var(--muted);}
+  footer{color:var(--muted); font-size:0.78rem; margin-top:30px; border-top:1px solid var(--border); padding-top:14px;}
+  a{color:var(--accent);}
+  .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50;}
+  .modal{background:var(--panel); border:1px solid var(--border); border-radius:10px; max-width:640px; max-height:80vh; overflow:auto; padding:20px;}
+  .modal h3{margin-top:0; color:var(--accent);}
+  .modal pre{white-space:pre-wrap; font-family:inherit; font-size:0.85rem; line-height:1.4;}
+  .modal .close{float:right; cursor:pointer; color:var(--muted);}
+</style>
+</head>
+<body>
+
+<h1>🛡️ Brodie's Warframe Tracker</h1>
+<div class="sub">Per-part checkboxes for base &amp; prime frames, companions, and sentinel weapons · live plat prices from warframe.market · acquisition lookups from wiki.warframe.com · saved automatically in this browser</div>
+
+<div class="stat-bar" id="statBar"></div>
+
+<div class="controls">
+  <input type="text" id="search" placeholder="🔍 Search...">
+  <select id="filter">
+    <option value="all">Show all</option>
+    <option value="incomplete">Hide fully completed rows</option>
+    <option value="needsubsume">Needs subsume only</option>
+    <option value="needprime">Has unowned Prime parts only</option>
+  </select>
+  <button class="btn" id="resetBtn">Reset all checkboxes</button>
+</div>
+
+<h2 class="section">Warframes</h2>
+<table id="frameTable">
+  <thead>
+    <tr>
+      <th class="left">Base Frame</th>
+      <th>Base Parts<br><span class="small">BP · Sys · Neu · Cha</span></th>
+      <th class="left">Prime</th>
+      <th>Prime Parts<br><span class="small">BP · Sys · Neu · Cha</span></th>
+      <th>Plat Price</th>
+      <th>Subsumed</th>
+      <th class="left">Acquisition / Farm Info</th>
+    </tr>
+  </thead>
+  <tbody id="frameBody"></tbody>
+</table>
+
+<h2 class="section">Companions</h2>
+<table id="companionTable">
+  <thead>
+    <tr>
+      <th class="left">Companion</th>
+      <th>Base Parts<br><span class="small">BP · Sys · Cer · Car</span></th>
+      <th class="left">Prime</th>
+      <th>Prime Parts<br><span class="small">BP · Sys · Cer · Car</span></th>
+      <th>Plat Price</th>
+      <th class="left">Acquisition / Farm Info</th>
+    </tr>
+  </thead>
+  <tbody id="companionBody"></tbody>
+</table>
+
+<h2 class="section">Sentinel Weapons</h2>
+<div class="sub" style="margin-bottom:10px;">Each sentinel's dedicated weapon. (Kitgun parts, Moa/Hound/Kavat/Kubrow cosmetic part catalogs from your original sheet weren't pulled in here — say the word and I'll add a separate table for those too.)</div>
+<table id="weaponTable">
+  <thead>
+    <tr>
+      <th class="left">Weapon</th>
+      <th class="left">Companion</th>
+      <th>Base Owned</th>
+      <th>Prime Owned</th>
+      <th>Plat Price</th>
+    </tr>
+  </thead>
+  <tbody id="weaponBody"></tbody>
+</table>
+
+<footer>
+  Plat prices: lowest current sell order for the relevant Set, pulled live from the
+  <a href="https://warframe.market" target="_blank">warframe.market</a> public API.
+  Acquisition: live extract pulled from <a href="https://wiki.warframe.com" target="_blank">wiki.warframe.com</a>'s MediaWiki API
+  (full page text — look for the "Acquisition" heading in the popup). Static farm notes shown by default come from your original tracker sheet.
+  All checkbox states save to this browser's local storage. "BP" = Main Blueprint. Unreleased primes are greyed out since they can't be owned yet.
+</footer>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <span class="close" id="modalClose">✕ close</span>
+    <h3 id="modalTitle"></h3>
+    <pre id="modalBody"></pre>
+  </div>
+</div>
+
+<script>
+/* ================= DATA ================= */
+// Base parts default to owned:true (if it's in your roster you've built the base frame).
+// Prime parts default from the source sheet's parts% table: "X"/"Crafted" -> owned, numbers -> needed (not owned).
+// Frames already fully Complete/subsumed with no entry in the parts table are assumed fully-owned primes.
+// primeUnreleased: true means the Prime exists but hasn't released yet -> checkboxes disabled.
+
+function P(bp, sys, neu, cha){ return {bp, sys, neu, cha}; }
+const ALL_TRUE = P(true,true,true,true);
+const ALL_FALSE = P(false,false,false,false);
+
+const frames = [
+{base:"Ash", mastered:true, prime:"Ash Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Atlas", mastered:false, prime:"Atlas Prime", primeParts:P(true,true,true,false), progress:"75% parts", subsumed:false},
+{base:"Banshee", mastered:false, prime:"Banshee Prime", primeParts:P(true,false,true,false), progress:"50% parts", subsumed:false},
+{base:"Baruuk", mastered:false, prime:"Baruuk Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Vox Solaris (Fortuna) – Purchase all parts with Standing [Rank 3 - Little Duck]"},
+{base:"Caliban", mastered:false, prime:"Caliban Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Narmer Bounties (Plains of Eidolon & Orb Vallis)"},
+{base:"Chroma", mastered:true, prime:"Chroma Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Citrine", mastered:false, prime:"Citrine Prime", primeUnreleased:true, subsumed:false, acquisition:"Otok"},
+{base:"Cyte-09", mastered:false, prime:"Cyte-09 Prime", primeUnreleased:true, subsumed:false, acquisition:"1999 - Standing"},
+{base:"Dagath", mastered:true, prime:"Dagath Prime", primeUnreleased:true, subsumed:true},
+{base:"Dante", mastered:false, prime:"Dante Prime", primeUnreleased:true, subsumed:false, acquisition:"Sanctum"},
+{base:"Ember", mastered:true, prime:"Ember Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Equinox", mastered:false, prime:"Equinox Prime", primeParts:P(true,false,true,true), progress:"75% parts", subsumed:false},
+{base:"Excalibur", mastered:true, prime:"Excalibur Umbra", primeParts:ALL_TRUE, subsumed:true},
+{base:"Frost", mastered:false, prime:"Frost Prime", primeParts:P(false,true,true,true), progress:"75% parts", subsumed:true},
+{base:"Follie", mastered:false, prime:"Follie Prime", primeUnreleased:true, subsumed:true},
+{base:"Gara", mastered:false, prime:"Gara Prime", primeParts:P(true,true,false,false), progress:"50% parts", subsumed:false},
+{base:"Garuda", mastered:true, prime:"Garuda Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Gauss", mastered:false, prime:"Gauss Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Disruption missions (Ceres, Jupiter, Neptune, Sedna)"},
+{base:"Grendel", mastered:false, prime:"Grendel Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Key farm via Arbitration + Special Grendel Missions"},
+{base:"Gyre", mastered:false, prime:"Gyre Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Zariman Bounties / Missions"},
+{base:"Harrow", mastered:false, prime:"Harrow Prime", primeParts:P(true,false,true,true), progress:"75% parts", subsumed:false},
+{base:"Hildryn", mastered:false, prime:"Hildryn Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Purchased from Little Duck for 5,000 Standing & Exploiter Orb"},
+{base:"Hydroid", mastered:true, prime:"Hydroid Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Inaros", mastered:false, prime:"Inaros Prime", primeParts:P(true,true,false,true), progress:"75% parts", subsumed:false},
+{base:"Ivara", mastered:true, prime:"Ivara Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Jade", mastered:false, prime:"Jade Prime", primeUnreleased:true, subsumed:false, acquisition:"Ordis + Elevation Map"},
+{base:"Khora", mastered:true, prime:"Khora Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Koumei", mastered:false, prime:"Koumei Prime", primeUnreleased:true, subsumed:false, acquisition:"Koumei's Shrine"},
+{base:"Kullervo", mastered:true, prime:"Kullervo Prime", primeUnreleased:true, subsumed:true},
+{base:"Lavos", mastered:true, prime:"Lavos Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Limbo", mastered:false, prime:"Limbo Prime", primeParts:P(false,true,false,false), progress:"25% parts", subsumed:false},
+{base:"Loki", mastered:false, prime:"Loki Prime", primeParts:P(true,false,true,true), progress:"75% parts", subsumed:false},
+{base:"Mag", mastered:false, prime:"Mag Prime", primeParts:ALL_FALSE, progress:"0% parts", subsumed:false},
+{base:"Mesa", mastered:true, prime:"Mesa Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Mirage", mastered:true, prime:"Mirage Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Nekros", mastered:true, prime:"Nekros Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Nezha", mastered:true, prime:"Nezha Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Nidus", mastered:false, prime:"Nidus Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"The Glast Gambit Quest + Infested Salvage (Erzurum, Eris)"},
+{base:"Nokko", mastered:true, prime:"Nokko Prime", primeUnreleased:true, subsumed:true},
+{base:"Nova", mastered:true, prime:"Nova Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Nyx", mastered:false, prime:"Nyx Prime", primeParts:P(true,false,false,false), progress:"25% parts", subsumed:false},
+{base:"Oberon", mastered:true, prime:"Oberon Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Octavia", mastered:false, prime:"Octavia Prime", primeParts:ALL_FALSE, progress:"0% parts", subsumed:false},
+{base:"Oraxia", mastered:false, prime:"Oraxia Prime", primeUnreleased:true, subsumed:false, acquisition:"Duviri"},
+{base:"Protea", mastered:false, prime:"Protea Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Granum Void – Access via Treasurer + Corpus Ship missions"},
+{base:"Qorvex", mastered:false, prime:"Qorvex Prime", primeUnreleased:true, subsumed:false, acquisition:"Whispers in the Walls quest + Sanctum Anatomica Bounties"},
+{base:"Revenant", mastered:false, prime:"Revenant Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Plains of Eidolon Bounties – Rotation-specific"},
+{base:"Rhino", mastered:false, prime:"Rhino Prime", primeParts:ALL_FALSE, progress:"0% parts", subsumed:false},
+{base:"Saryn", mastered:true, prime:"Saryn Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Sirius & Orion", mastered:false, prime:"Sirius & Orion Prime", primeUnreleased:true, subsumed:false, acquisition:"Uranus Proxima Railjack Missions"},
+{base:"Sevagoth", mastered:false, prime:"Sevagoth Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Call of the Tempestarii quest"},
+{base:"Styanax", mastered:false, prime:"Styanax Prime", primeParts:ALL_FALSE, progress:"0% parts", subsumed:false},
+{base:"Temple", mastered:false, prime:"Temple Prime", primeUnreleased:true, subsumed:false, acquisition:"1999 - Beating Heartstrings"},
+{base:"Titania", mastered:false, prime:"Titania Prime", primeParts:P(false,false,true,true), progress:"50% parts", subsumed:false},
+{base:"Trinity", mastered:true, prime:"Trinity Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Uriel", mastered:false, prime:"Uriel Prime", primeUnreleased:true, subsumed:false, acquisition:"The Old Peace quest + Roathe's Oblivion on Infernium 21 of The Descendia"},
+{base:"Valkyr", mastered:true, prime:"Valkyr Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Vauban", mastered:false, prime:"Vauban Prime", primeParts:P(true,true,false,true), progress:"75% parts", subsumed:false},
+{base:"Volt", mastered:true, prime:"Volt Prime", primeParts:ALL_TRUE, subsumed:true},
+{base:"Voruna", mastered:false, prime:"Voruna Prime", primeParts:P(false,true,false,false), progress:"25% parts", subsumed:false},
+{base:"Wisp", mastered:false, prime:"Wisp Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Ropalolyst Assassination Wisp Component"},
+{base:"Wukong", mastered:false, prime:"Wukong Prime", primeParts:ALL_FALSE, progress:"0% parts", subsumed:false},
+{base:"Xaku", mastered:false, prime:"Xaku Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"Cambion Drift Bounties"},
+{base:"Yareli", mastered:false, prime:"Yareli Prime", primeParts:ALL_FALSE, subsumed:false, acquisition:"The Waverider quest"},
+{base:"Zephyr", mastered:false, prime:"Zephyr Prime", primeParts:P(false,false,true,true), progress:"50% parts", subsumed:false},
+];
+
+// Companion part data: known from sheet (Nautilus, Helios Prime, Shade Prime had explicit data).
+// Everything else defaults to base owned, prime parts unknown (false) -- correct these yourself.
+const companions = [
+{base:"Nautilus", prime:null, baseParts:P(true,false,true,false)},
+{base:"Carrier", prime:"Carrier Prime", baseParts:ALL_TRUE, primeParts:ALL_FALSE},
+{base:"Dethcube", prime:"Dethcube Prime", baseParts:ALL_TRUE, primeParts:ALL_FALSE},
+{base:"Helios", prime:"Helios Prime", baseParts:ALL_TRUE, primeParts:P(false,true,true,false)},
+{base:"Wyrm", prime:"Wyrm Prime", baseParts:ALL_TRUE, primeParts:ALL_FALSE},
+{base:"Shade", prime:"Prisma Shade", baseParts:ALL_TRUE, primeParts:P(true,false,true,false)},
+{base:"Taxon", prime:null, baseParts:ALL_TRUE},
+{base:"Diriga", prime:null, baseParts:ALL_TRUE},
+{base:"Djinn", prime:null, baseParts:ALL_TRUE},
+{base:"Oxylus", prime:null, baseParts:ALL_TRUE},
+];
+
+// Sentinel weapons: base + prime/prisma variant per companion.
+const weapons = [
+{name:"Verglas", companion:"Nautilus", prime:"Verglas Prime"},
+{name:"Sweeper Shotgun", companion:"Carrier", prime:"Sweeper Shotgun Prime"},
+{name:"Deth Machine Rifle", companion:"Dethcube", prime:"Deth Machine Rifle Prime"},
+{name:"Deconstructor", companion:"Helios", prime:"Deconstructor Prime"},
+{name:"Laser Rifle", companion:"Wyrm", prime:"Laser Rifle Prime"},
+{name:"Burst Laser", companion:"Shade", prime:"Prisma Burst Laser"},
+{name:"Artax", companion:"Taxon", prime:null},
+{name:"Vulklok Sniper Rifle", companion:"Diriga", prime:null},
+{name:"Stinger", companion:"Djinn", prime:null},
+{name:"Multron Burst Rifle", companion:"Oxylus", prime:null},
+];
+
+/* ================= STORAGE ================= */
+const STORE_KEY = "warframe_tracker_state_v2";
+function loadState(){ try{ return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }catch(e){ return {}; } }
+function saveState(state){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+let state = loadState();
+function getVal(id, fallback){ return (id in state) ? state[id] : fallback; }
+function setVal(id, val){ state[id] = val; saveState(state); }
+
+/* ================= API HELPERS ================= */
+function marketSlug(name){
+  return name.toLowerCase().replace(/&/g,"and").replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+}
+async function fetchPlatPrice(itemName, btn){
+  if(!itemName) return;
+  btn.disabled = true; btn.textContent = "...";
+  const base = marketSlug(itemName);
+  const candidates = [base + "_set", base];
+  let found = null;
+  for(const slug of candidates){
+    try{
+      const res = await fetch(`https://api.warframe.market/v1/items/${slug}/orders`, {headers:{"Platform":"pc"}});
+      if(!res.ok) continue;
+      const data = await res.json();
+      const orders = (data.payload && data.payload.orders) || [];
+      const sells = orders.filter(o => o.order_type === "sell" && o.user && o.user.status === "ingame").sort((a,b)=>a.platinum-b.platinum);
+      if(sells.length){ found = sells[0].platinum; break; }
+      const anySell = orders.filter(o => o.order_type === "sell").sort((a,b)=>a.platinum-b.platinum);
+      if(anySell.length){ found = anySell[0].platinum; break; }
+    }catch(e){}
+  }
+  btn.disabled = false;
+  const cell = btn.parentElement;
+  if(found !== null){
+    cell.innerHTML = `<span class="price">${found}p</span> <button class="btn refresh-mini">↻</button>`;
+    cell.querySelector(".refresh-mini").onclick = () => fetchPlatPrice(itemName, cell.querySelector(".refresh-mini"));
+  } else {
+    btn.textContent = "n/a ↻";
+  }
+}
+async function fetchWikiAcquisition(pageName, displayTitle){
+  const modalBg = document.getElementById("modalBg");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalBody = document.getElementById("modalBody");
+  modalTitle.textContent = displayTitle;
+  modalBody.textContent = "Loading from wiki.warframe.com...";
+  modalBg.style.display = "flex";
+  try{
+    const url = `https://wiki.warframe.com/api.php?action=query&prop=extracts&explaintext=1&titles=${encodeURIComponent(pageName)}&format=json&origin=*`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const pages = data.query && data.query.pages;
+    const pageId = pages && Object.keys(pages)[0];
+    let text = pages && pages[pageId] && pages[pageId].extract;
+    if(!text){
+      modalBody.textContent = "No page found for \"" + pageName + "\". Try directly: https://wiki.warframe.com/w/" + encodeURIComponent(pageName.replace(/ /g,"_"));
+      return;
+    }
+    const idx = text.indexOf("Acquisition");
+    let snippet = idx !== -1 ? text.substring(idx, idx+1800)
+      : text.substring(0,1200) + "\n\n[No 'Acquisition' heading found — showing intro. Full page: https://wiki.warframe.com/w/" + encodeURIComponent(pageName.replace(/ /g,"_")) + "]";
+    modalBody.textContent = snippet;
+  }catch(e){
+    modalBody.textContent = "Couldn't reach wiki.warframe.com (CORS or network issue). Open directly: https://wiki.warframe.com/w/" + encodeURIComponent(pageName.replace(/ /g,"_"));
+  }
+}
+document.getElementById("modalClose").onclick = () => document.getElementById("modalBg").style.display = "none";
+document.getElementById("modalBg").addEventListener("click", e => { if(e.target.id === "modalBg") e.target.style.display = "none"; });
+
+/* ================= RENDER HELPERS ================= */
+function partGroup(idPrefix, parts, disabled){
+  const labels = [["bp","BP"],["sys","Sys"],["neu","Neu"],["cha","Cha"]];
+  let html = `<div class="partgroup" data-prefix="${idPrefix}">`;
+  labels.forEach(([key,label]) => {
+    const fallback = parts ? parts[key] : false;
+    const checked = getVal(idPrefix+"_"+key, fallback);
+    html += `<label>${label}<input type="checkbox" data-key="${key}" ${checked?"checked":""} ${disabled?"disabled":""}></label>`;
+  });
+  html += `</div>`;
+  return html;
+}
+function wirePartGroup(container, idPrefix, onAnyChange){
+  container.querySelectorAll(`.partgroup[data-prefix="${idPrefix}"] input`).forEach(cb => {
+    cb.onchange = () => { setVal(idPrefix+"_"+cb.dataset.key, cb.checked); onAnyChange && onAnyChange(); };
+  });
+}
+function allPartsTrue(idPrefix, fallbackParts, disabled){
+  if(disabled) return false;
+  const keys = ["bp","sys","neu","cha"];
+  return keys.every(k => getVal(idPrefix+"_"+k, fallbackParts ? fallbackParts[k] : false));
+}
+
+/* ================= RENDER: FRAMES ================= */
+function renderFrames(){
+  const tbody = document.getElementById("frameBody");
+  tbody.innerHTML = "";
+  frames.forEach(f => {
+    const baseId = "frame_" + f.base.replace(/[^a-zA-Z0-9]/g,"_") + "_base";
+    const primeId = "frame_" + f.base.replace(/[^a-zA-Z0-9]/g,"_") + "_prime";
+    const subKey = "frame_" + f.base.replace(/[^a-zA-Z0-9]/g,"_") + "_subsumed";
+    const subsumed = getVal(subKey, f.subsumed);
+
+    const baseOwned = allPartsTrue(baseId, ALL_TRUE, false);
+    const primeOwned = allPartsTrue(primeId, f.primeParts, f.primeUnreleased);
+    const complete = baseOwned && (f.primeUnreleased ? true : primeOwned) && subsumed;
+
+    const tr = document.createElement("tr");
+    tr.className = "row";
+    if(complete) tr.classList.add("complete");
+    tr.dataset.name = f.base.toLowerCase();
+    tr.dataset.needsubsume = (!subsumed) ? "1":"0";
+    tr.dataset.needprime = (!f.primeUnreleased && !primeOwned) ? "1":"0";
+    tr.dataset.complete = complete ? "1":"0";
+
+    const primeCellHtml = f.primeUnreleased
+      ? `<span class="name">${f.prime}</span><div class="unreleased">Unreleased</div>`
+      : `<span class="name">${f.prime}</span>${f.progress ? `<div class="progress">${f.progress}</div>`:""}`;
+
+    const priceCellHtml = !f.primeUnreleased
+      ? `<button class="btn price-btn">💰</button>`
+      : `<span class="small">—</span>`;
+
+    const acqStatic = f.acquisition ? `<div class="acq-static">${f.acquisition}</div>` : `<div class="acq-static small">No farm note saved</div>`;
+
+    tr.innerHTML = `
+      <td class="left"><span class="name">${f.base}</span></td>
+      <td>${partGroup(baseId, ALL_TRUE, false)}</td>
+      <td class="left">${primeCellHtml}</td>
+      <td>${partGroup(primeId, f.primeParts, !!f.primeUnreleased)}</td>
+      <td>${priceCellHtml}</td>
+      <td><input type="checkbox" class="chk-subsumed" ${subsumed?"checked":""}></td>
+      <td class="acq-cell left">${acqStatic}<button class="btn wiki-btn" style="margin-top:4px;">🌐 Wiki</button></td>
+    `;
+
+    wirePartGroup(tr, baseId, () => { renderFrames(); renderStats(); });
+    wirePartGroup(tr, primeId, () => { renderFrames(); renderStats(); });
+    tr.querySelector(".chk-subsumed").onchange = e => { setVal(subKey, e.target.checked); renderFrames(); renderStats(); };
+    const priceBtn = tr.querySelector(".price-btn");
+    if(priceBtn) priceBtn.onclick = () => fetchPlatPrice(f.prime, priceBtn);
+    tr.querySelector(".wiki-btn").onclick = () => fetchWikiAcquisition(f.base, f.base + " — Acquisition");
+
+    tbody.appendChild(tr);
+  });
+  applyFilters();
+}
+
+/* ================= RENDER: COMPANIONS ================= */
+function renderCompanions(){
+  const tbody = document.getElementById("companionBody");
+  tbody.innerHTML = "";
+  companions.forEach(c => {
+    const baseId = "comp_" + c.base.replace(/[^a-zA-Z0-9]/g,"_") + "_base";
+    const primeId = "comp_" + c.base.replace(/[^a-zA-Z0-9]/g,"_") + "_prime";
+
+    const tr = document.createElement("tr");
+    tr.className = "row";
+
+    const primeCellHtml = c.prime ? `<span class="name">${c.prime}</span>` : `<span class="noprime">No Prime</span>`;
+    const priceCellHtml = c.prime ? `<button class="btn price-btn">💰</button>` : `<span class="small">—</span>`;
+
+    tr.innerHTML = `
+      <td class="left"><span class="name">${c.base}</span></td>
+      <td>${partGroup(baseId, c.baseParts || ALL_TRUE, false)}</td>
+      <td class="left">${primeCellHtml}</td>
+      <td>${c.prime ? partGroup(primeId, c.primeParts || ALL_FALSE, false) : `<span class="small">—</span>`}</td>
+      <td>${priceCellHtml}</td>
+      <td class="acq-cell left"><button class="btn wiki-btn">🌐 Wiki</button></td>
+    `;
+    wirePartGroup(tr, baseId);
+    if(c.prime) wirePartGroup(tr, primeId);
+    const priceBtn = tr.querySelector(".price-btn");
+    if(priceBtn) priceBtn.onclick = () => fetchPlatPrice(c.prime, priceBtn);
+    tr.querySelector(".wiki-btn").onclick = () => fetchWikiAcquisition(c.base, c.base + " — Acquisition");
+
+    tbody.appendChild(tr);
+  });
+}
+
+/* ================= RENDER: WEAPONS ================= */
+function renderWeapons(){
+  const tbody = document.getElementById("weaponBody");
+  tbody.innerHTML = "";
+  weapons.forEach(w => {
+    const baseKey = "weapon_" + w.name.replace(/[^a-zA-Z0-9]/g,"_") + "_owned";
+    const primeKey = "weapon_" + w.name.replace(/[^a-zA-Z0-9]/g,"_") + "_prime_owned";
+    const baseOwned = getVal(baseKey, false);
+    const primeOwned = getVal(primeKey, false);
+
+    const tr = document.createElement("tr");
+    tr.className = "row";
+    tr.innerHTML = `
+      <td class="left"><span class="name">${w.name}</span>${w.prime ? `<div class="small">${w.prime}</div>`:""}</td>
+      <td class="left">${w.companion}</td>
+      <td><input type="checkbox" class="chk-base" ${baseOwned?"checked":""}></td>
+      <td>${w.prime ? `<input type="checkbox" class="chk-prime" ${primeOwned?"checked":""}>` : `<span class="small">—</span>`}</td>
+      <td>${w.prime ? `<button class="btn price-btn">💰</button>` : `<span class="small">—</span>`}</td>
+    `;
+    tr.querySelector(".chk-base").onchange = e => setVal(baseKey, e.target.checked);
+    const primeChk = tr.querySelector(".chk-prime");
+    if(primeChk) primeChk.onchange = e => setVal(primeKey, e.target.checked);
+    const priceBtn = tr.querySelector(".price-btn");
+    if(priceBtn) priceBtn.onclick = () => fetchPlatPrice(w.prime, priceBtn);
+    tbody.appendChild(tr);
+  });
+}
+
+/* ================= STATS / FILTERS ================= */
+function renderStats(){
+  const total = frames.length;
+  const baseOwnedCount = frames.filter(f => allPartsTrue("frame_"+f.base.replace(/[^a-zA-Z0-9]/g,"_")+"_base", ALL_TRUE, false)).length;
+  const primeable = frames.filter(f => !f.primeUnreleased).length;
+  const primeOwnedCount = frames.filter(f => !f.primeUnreleased && allPartsTrue("frame_"+f.base.replace(/[^a-zA-Z0-9]/g,"_")+"_prime", f.primeParts, false)).length;
+  const subsumedCount = frames.filter(f => getVal("frame_"+f.base.replace(/[^a-zA-Z0-9]/g,"_")+"_subsumed", f.subsumed)).length;
+
+  document.getElementById("statBar").innerHTML = `
+    <div class="stat"><div class="num">${baseOwnedCount} / ${total}</div><div class="label">Base Fully Built</div></div>
+    <div class="stat"><div class="num">${primeOwnedCount} / ${primeable}</div><div class="label">Primes Fully Built</div></div>
+    <div class="stat"><div class="num">${subsumedCount} / ${total}</div><div class="label">Subsumed</div></div>
+  `;
+}
+function applyFilters(){
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  const mode = document.getElementById("filter").value;
+  document.querySelectorAll("#frameBody tr.row").forEach(tr => {
+    let show = true;
+    if(q && !tr.dataset.name.includes(q)) show = false;
+    if(mode === "incomplete" && tr.dataset.complete === "1") show = false;
+    if(mode === "needsubsume" && tr.dataset.needsubsume === "0") show = false;
+    if(mode === "needprime" && tr.dataset.needprime === "0") show = false;
+    tr.classList.toggle("hidden", !show);
+  });
+}
+document.getElementById("search").addEventListener("input", applyFilters);
+document.getElementById("filter").addEventListener("change", applyFilters);
+document.getElementById("resetBtn").addEventListener("click", () => {
+  if(confirm("Reset all checkboxes back to the original saved defaults? This clears your local progress.")){
+    localStorage.removeItem(STORE_KEY);
+    state = {};
+    renderFrames(); renderCompanions(); renderWeapons(); renderStats();
+  }
+});
+
+renderFrames();
+renderCompanions();
+renderWeapons();
+renderStats();
+</script>
+</body>
+</html>
