@@ -376,7 +376,7 @@
       let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;padding:12px;">';
       list.forEach((item) => {
         const imgHtml = item.imageUrl
-          ? '<img src="' + item.imageUrl + '" alt="" style="width:48px;height:48px;object-fit:contain;" onerror="if(this.dataset.fallback){this.src=this.dataset.fallback;this.dataset.fallback=\'\';}else{this.style.display=\'none\'}" ' + (item.imageFallbackUrl ? 'data-fallback="' + item.imageFallbackUrl + '"' : '') + ' />'
+          ? '<img src="' + item.imageUrl + '" alt="" style="width:48px;height:48px;object-fit:contain;" onerror="if(this.dataset.fallback){this.src=this.dataset.fallback;this.dataset.fallback=\'\';}else{this.style.display=\'none\'}" ' + (item.imageFallbackUrl ? 'data-fallback="' + item.imageFallbackUrl.replace(/&/g, '&amp;') + '"' : '') + ' />'
           : '<div style="width:48px;height:48px;margin:0 auto;background:#30363d;border-radius:4px;"></div>';
         const badge = item.owned
           ? '<span class="badge owned">Owned</span>'
@@ -406,7 +406,7 @@
             : '<span class="badge missing">Missing</span>';
         }
         const imgHtml = item.imageUrl
-          ? '<img class="item-icon" src="' + item.imageUrl + '" alt="" loading="lazy" onerror="if(this.dataset.fallback){this.src=this.dataset.fallback;this.dataset.fallback=\'\';}else{this.style.display=\'none\'}" ' + (item.imageFallbackUrl ? 'data-fallback="' + item.imageFallbackUrl + '"' : '') + ' />'
+          ? '<img class="item-icon" src="' + item.imageUrl + '" alt="" loading="lazy" onerror="if(this.dataset.fallback){this.src=this.dataset.fallback;this.dataset.fallback=\'\';}else{this.style.display=\'none\'}" ' + (item.imageFallbackUrl ? 'data-fallback="' + item.imageFallbackUrl.replace(/&/g, '&amp;') + '"' : '') + ' />'
           : '<span class="item-icon ' + (item.type?.toLowerCase().split(' ')[0] || '') + '" title="' + escapeHtml(item.type) + '"></span>';
         const nameHtml = item.wikiaUrl
           ? '<a class="item-name-link" href="' + item.wikiaUrl + '" target="_blank" rel="noopener">' + escapeHtml(item.name) + '</a>'
