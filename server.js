@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import fs from 'node:fs';
+import { load } from 'cheerio';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -24,6 +26,64 @@ let catalogCache = null;
 let catalogPromise = null;
 let masteryCache = null;
 let masteryPromise = null;
+let checklistCache = null;
+let checklistPromise = null;
+
+// Load mastery points from local checklist HTML files
+async function loadChecklistMastery() {
+  if (checklistCache) return checklistCache;
+  if (checklistPromise) return checklistPromise;
+  checklistPromise = (async () => {
+    try {
+      const checklistPaths = [
+        '/home/brgjr10/warframe-mastery-tracker/Mastery Rank Checklist - WARFRAME Wiki.html',
+        '/home/brgjr10/zimaserver/ZimaOS-HD/AppData/Projects/WFProj/Mastery Rank Checklist - WARFRAME Wiki.html'
+      ];
+      const byName = new Map();
+      for (const p of checklistPaths) {
+        try {
+          if (!fs.existsSync(p)) continue;
+          const html = fs.readFileSync(p, 'utf8');
+          const $ = load(html);
+          $('tr[data-rowid]').each((_, tr) => {
+            const rowid = $(tr).attr('data-rowid');
+            if (!rowid || rowid.startsWith('SolNode')) return;
+            const mpCell = $(tr).find('td[data-store-currency="Mastery Point"]').first();
+            if (!mpCell.length) return;
+            const mpText = mpCell.text().replace(/,/g, '');
+            const mpMatch = mpText.match(/([0-9]+)/);
+            if (!mpMatch) return;
+            const mp = parseInt(mpMatch[1], 10);
+            if (mp <= 0) return;
+            // Get name
+            const nameCell = $(tr).find('td').first();
+            const link = nameCell.find('a').first();
+            let name = link.text().trim() || nameCell.text().trim();
+            name = name.replace(/\[.*\]/, '').replace(/\s+/g, ' ').trim();
+            if (name && !byName.has(name)) {
+              byName.set(name, mp);
+            }
+            // Also map by rowid
+            if (!byName.has(rowid)) {
+              byName.set(rowid, mp);
+            }
+          });
+        } catch (e) {
+          console.error('Failed to load checklist:', p, e.message);
+        }
+      }
+      checklistCache = byName;
+      return checklistCache;
+    } catch (err) {
+      console.error('loadChecklistMastery failed:', err.message);
+      checklistCache = new Map();
+      return checklistCache;
+    } finally {
+      checklistPromise = null;
+    }
+  })();
+  return checklistPromise;
+}
 
 // Fetch mastery points from Warframe Wiki Mastery Rank Checklist
 async function getMasteryPoints() {
@@ -118,7 +178,15 @@ async function getCatalog() {
 app.get('/api/catalog', async (req, res) => {
   try {
     const catalog = await getCatalog();
-    const masteryPoints = await getMasteryPoints();
+      const masteryPoints = await getMasteryPoints();
+      const checklistPoints = await loadChecklistMastery();
+      // Merge checklist points (local truth files take precedence)
+      const mergedMastery = new Map(masteryPoints);
+      for (const [k, v] of checklistPoints) {
+        if (!mergedMastery.has(k) || v > mergedMastery.get(k)) {
+          mergedMastery.set(k, v);
+        }
+      }
     // Return all items as an array with fields needed for mastery tracking
     const slim = [];
     const merged = new Map();
@@ -162,7 +230,7 @@ app.get('/api/catalog', async (req, res) => {
       }
 
       // Look up mastery points from wiki (by name)
-      const mp = masteryPoints.get(name) || masteryPoints.get(v.name) || v.masteryReq || 0;
+      const mp = mergedMastery.get(name) || mergedMastery.get(v.name) || mergedMastery.get(uniqueName) || v.masteryReq || 0;
 
       merged.set(key, {
         uniqueName: key,
