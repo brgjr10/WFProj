@@ -1,0 +1,7 @@
+version: "3.8"
+services:
+  warframe-tracker:
+    build: .
+    ports:
+      - "4050:3001"
+    restart: unless-stopped
