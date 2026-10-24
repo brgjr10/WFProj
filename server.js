@@ -248,12 +248,14 @@ app.get('/api/warframe/profile', async (req, res) => {
     if (!apiRes.ok) {
       // Try fallback to local profile for 403/409/429 errors (API blocked/rate limited)
       if ([403, 409, 429].includes(apiRes.status)) {
-        const data = await import('./profile.json', { with: { type: 'json' } });
-        return res.json({ 
-          XPInfo: extractXPInfo(data.default).XPInfo,
-          _fallback: true,
-          _fallbackReason: `Warframe API returned ${apiRes.status} - using local profile data`
-        });
+      const data = await import('./profile.json', { with: { type: 'json' } });
+      const extracted = extractXPInfo(data.default);
+      return res.json({ 
+        XPInfo: extracted.XPInfo,
+        DisplayName: extracted.DisplayName,
+        _fallback: true,
+        _fallbackReason: `Warframe API returned ${apiRes.status} - using local profile data`
+      });
       }
       return res.status(apiRes.status).json({ error: 'Warframe API fetch failed', details: apiRes.statusText });
     }
@@ -263,8 +265,10 @@ app.get('/api/warframe/profile', async (req, res) => {
     // Fallback to local profile on network errors
     try {
       const data = await import('./profile.json', { with: { type: 'json' } });
+      const extracted = extractXPInfo(data.default);
       res.json({ 
-        XPInfo: extractXPInfo(data.default).XPInfo,
+        XPInfo: extracted.XPInfo,
+        DisplayName: extracted.DisplayName,
         _fallback: true,
         _fallbackReason: 'Network error - using local profile data'
       });
