@@ -383,7 +383,7 @@
           : '<span class="badge missing">Missing</span>';
         html += '<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px;text-align:center;">' +
           imgHtml +
-          '<div style="margin:8px 0;font-weight:600;font-size:14px;">' + escapeHtml(item.name) + '</div>' +
+          '<div style="margin:8px 0;font-weight:600;font-size:14px;">' + (item.wikiaUrl ? '<a class="item-name-link" href="' + item.wikiaUrl + '" target="_blank" rel="noopener">' + escapeHtml(item.name) + '</a>' : escapeHtml(item.name)) + '</div>' +
           '<div style="font-size:11px;color:#8b949e;">' + escapeHtml(item.type) + '</div>' +
           '<div style="margin-top:6px;font-size:12px;">MR ' + item.mr.toLocaleString() + '</div>' +
           '<div style="margin-top:4px;">' + badge + '</div>' +
