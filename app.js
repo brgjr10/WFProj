@@ -229,8 +229,8 @@
     localStorage.removeItem(MR_LEVEL_KEY);
   }
   function isFormaToggleable(name, baseMr) {
-    // Only regular weapons (base 3000) can be forma'd to reach MR 40
-    return baseMr === 3000;
+    // Only items listed as 4000 MP on the wiki (Kuva/Tenet/Coda) get the toggle
+    return baseMr === 4000;
   }
 
   // --- Process profile ---
