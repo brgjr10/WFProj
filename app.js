@@ -283,6 +283,7 @@
         imageName: item.imageName || null,
         wikiaUrl: item.wikiaUrl || null,
         imageUrl: item.imageUrl || null,
+        imageFallbackUrl: item.imageFallbackUrl || null,
         isPrime: item.isPrime || false,
         masteryReq: item.masteryReq || 0,
         isFormaToggleable: isFormaToggleable(item.name, item.masteryLevel || 0),
