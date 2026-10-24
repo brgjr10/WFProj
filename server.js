@@ -246,6 +246,39 @@ app.get('/api/catalog', async (req, res) => {
         imageFallbackUrl,
       });
     }
+    // Add missing items from checklist (zaws, kitguns, amps, moas, hounds, k-drives, etc.)
+    try {
+      const checklistPoints = await loadChecklistMastery();
+      for (const [key, mp] of checklistPoints) {
+        if (merged.has(key) || merged.has(key.replace(/\s+/g, ''))) continue;
+        // Skip if it's a node or unlock
+        if (key.startsWith('SolNode') || key.includes('Unlock') || key.includes('Deploy')) continue;
+        // Check if we already have by name
+        let exists = false;
+        for (const item of merged.values()) {
+          if (item.name === key || item.uniqueName === key) { exists = true; break; }
+        }
+        if (exists) continue;
+        // Add as new item
+        merged.set(key, {
+          uniqueName: key,
+          name: key,
+          type: key.includes('Strike') || key.includes('Zaw') ? 'Melee' : 
+                key.includes('Gun') && !key.includes('Companion') ? 'Rifle' :
+                'Weapon',
+          masteryLevel: mp,
+          masteryReq: mp,
+          isPrime: key.includes('Prime'),
+          vaulted: false,
+          imageName: null,
+          wikiaUrl: `https://wiki.warframe.com/w/${key.replace(/\s+/g, '_')}`,
+          imageUrl: null,
+          imageFallbackUrl: null,
+        });
+      }
+    } catch (e) {
+      console.error('Failed to merge checklist items:', e.message);
+    }
     for (const item of merged.values()) {
       slim.push(item);
     }
