@@ -165,6 +165,11 @@
       }
       const transformedData = { XPInfo: xpInfo, DisplayName: displayName };
       processProfile(transformedData);
+      // Retry if profile came back blank
+      if (!xpInfo || xpInfo.length === 0) {
+        setTimeout(() => fetchProfile(), 3000);
+        return;
+      }
       // Auto-refresh from API every 5 minutes
       if (state.refreshTimer) clearInterval(state.refreshTimer);
       state.refreshTimer = setInterval(() => {
@@ -243,11 +248,6 @@
       }
       nameEl.textContent = name ? name : "";
     }
-    // Hide Load Profile section once a valid profile is loaded
-    const loadSection = $("#load-profile-section");
-    if (loadSection && (data.XPInfo && data.XPInfo.length > 0)) {
-      loadSection.style.display = "none";
-    }
     const ownedMap = new Map();
     (data.XPInfo || []).forEach((x) => {
       let itemType = x.ItemType;
@@ -260,6 +260,11 @@
     renderSummary();
     renderTable();
     $("#dashboard").style.display = "block";
+    // Hide Load Profile section only after a successful non-blank load
+    const loadSection = $("#load-profile-section");
+    if (loadSection && state.items.length > 0 && data.XPInfo && data.XPInfo.length > 0) {
+      loadSection.style.display = "none";
+    }
   }
 
   // --- Compute items list ---
