@@ -106,7 +106,7 @@ app.get('/api/catalog', async (req, res) => {
       // Merge Sirius & Orion / Orion & Sirius into a single entry
       let key = uniqueName;
       let name = v.name || uniqueName;
-      let imageUrl = v.wikiaThumbnail || `https://wiki.warframe.com/images/${(v.name || '').replace(/[\s-]/g, '')}.png`;
+      let imageUrl = v.wikiaThumbnail || (v.imageName ? `https://wiki.warframe.com/images/${v.imageName}.png` : `https://wiki.warframe.com/images/${(v.name || '').replace(/[\s-]/g, '')}.png`);
       if (uniqueName.includes('SiriusOrion')) {
         key = '/Lotus/Powersuits/SiriusOrion/Merged';
         name = 'Sirius & Orion';
