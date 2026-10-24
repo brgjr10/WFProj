@@ -229,8 +229,7 @@
     localStorage.removeItem(MR_LEVEL_KEY);
   }
   function isFormaToggleable(name, baseMr) {
-    // Kuva/Tenet/Coda weapons (base 4000) and regular weapons (base 3000) can be forma'd
-    if (/Kuva |Tenet |Coda /i.test(name)) return true;
+    // Only regular weapons (base 3000) can be forma'd to reach MR 40
     return baseMr === 3000;
   }
 
