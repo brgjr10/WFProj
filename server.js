@@ -107,8 +107,9 @@ app.get('/api/catalog', async (req, res) => {
       let key = uniqueName;
       let name = v.name || uniqueName;
       const nameBasedUrl = `https://wiki.warframe.com/images/${(v.name || '').replace(/[\s-]/g, '')}.png`;
-      let imageUrl = v.wikiaThumbnail || (v.imageName ? `https://wiki.warframe.com/images/${v.imageName}${v.imageName.includes('.') ? '' : '.png'}` : nameBasedUrl);
-      let imageFallbackUrl = (imageUrl !== nameBasedUrl) ? nameBasedUrl : null;
+      const imageNameBasedUrl = v.imageName ? `https://wiki.warframe.com/images/${v.imageName}${v.imageName.includes('.') ? '' : '.png'}` : null;
+      let imageUrl = v.wikiaThumbnail || nameBasedUrl;
+      let imageFallbackUrl = (imageNameBasedUrl && imageNameBasedUrl !== nameBasedUrl) ? imageNameBasedUrl : null;
       if (uniqueName.includes('SiriusOrion')) {
         key = '/Lotus/Powersuits/SiriusOrion/Merged';
         name = 'Sirius & Orion';
