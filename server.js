@@ -106,11 +106,14 @@ app.get('/api/catalog', async (req, res) => {
       // Merge Sirius & Orion / Orion & Sirius into a single entry
       let key = uniqueName;
       let name = v.name || uniqueName;
-      let imageUrl = v.wikiaThumbnail || (v.imageName ? `https://wiki.warframe.com/images/${v.imageName}${v.imageName.includes('.') ? '' : '.png'}` : `https://wiki.warframe.com/images/${(v.name || '').replace(/[\s-]/g, '')}.png`);
+      const nameBasedUrl = `https://wiki.warframe.com/images/${(v.name || '').replace(/[\s-]/g, '')}.png`;
+      let imageUrl = v.wikiaThumbnail || (v.imageName ? `https://wiki.warframe.com/images/${v.imageName}${v.imageName.includes('.') ? '' : '.png'}` : nameBasedUrl);
+      let imageFallbackUrl = (imageUrl !== nameBasedUrl) ? nameBasedUrl : null;
       if (uniqueName.includes('SiriusOrion')) {
         key = '/Lotus/Powersuits/SiriusOrion/Merged';
         name = 'Sirius & Orion';
         imageUrl = 'https://wiki.warframe.com/images/SiriusOrion.png';
+        imageFallbackUrl = null;
       }
 
       if (merged.has(key)) {
@@ -132,6 +135,7 @@ app.get('/api/catalog', async (req, res) => {
         imageName: v.imageName || null,
         wikiaUrl: v.wikiaUrl || null,
         imageUrl,
+        imageFallbackUrl,
       });
     }
     for (const item of merged.values()) {
