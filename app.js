@@ -15,6 +15,7 @@
     primeFilter: "all",
     sort: "name-asc",
     view: "table",
+    refreshTimer: null,
   };
 
   // --- DOM ---
@@ -164,6 +165,11 @@
       }
       const transformedData = { XPInfo: xpInfo, DisplayName: displayName };
       processProfile(transformedData);
+      // Auto-refresh from API every 5 minutes
+      if (state.refreshTimer) clearInterval(state.refreshTimer);
+      state.refreshTimer = setInterval(() => {
+        fetchProfile();
+      }, 5 * 60 * 1000);
     } catch (err) {
       showError("Fetch error: " + err.message);
     } finally {
@@ -236,6 +242,11 @@
         name = data.DisplayName.replace(/<<ZIMA_USER>>/g, "deadvision").replace(/[^\x20-\x7E]/g, "").trim();
       }
       nameEl.textContent = name ? name : "";
+    }
+    // Hide Load Profile section once a valid profile is loaded
+    const loadSection = $("#load-profile-section");
+    if (loadSection && (data.XPInfo && data.XPInfo.length > 0)) {
+      loadSection.style.display = "none";
     }
     const ownedMap = new Map();
     (data.XPInfo || []).forEach((x) => {
