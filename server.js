@@ -110,13 +110,10 @@ app.get('/api/catalog', async (req, res) => {
       const imageNameBasedUrl = v.imageName ? `https://wiki.warframe.com/images/${v.imageName}${v.imageName.includes('.') ? '' : '.png'}` : null;
       let imageUrl = v.wikiaThumbnail || nameBasedUrl;
       let imageFallbackUrl = (imageNameBasedUrl && imageNameBasedUrl !== nameBasedUrl) ? imageNameBasedUrl : null;
-      // Dark Split-Sword has two wiki variants not covered by WFCD imageName
-      if (name.includes('Dual Swords')) {
+      // Dark Split-Sword wiki image differs from WFCD imageName
+      if (name === 'Dark Split-Sword') {
         imageUrl = 'https://wiki.warframe.com/images/DarkSplitSwordDualSwords.png';
-        imageFallbackUrl = null;
-      } else if (name.includes('Heavy Blade')) {
-        imageUrl = 'https://wiki.warframe.com/images/DarkSplitSwordHeavyBlade.png';
-        imageFallbackUrl = null;
+        imageFallbackUrl = 'https://wiki.warframe.com/images/DarkSplitSwordHeavyBlade.png';
       }
       if (uniqueName.includes('SiriusOrion')) {
         key = '/Lotus/Powersuits/SiriusOrion/Merged';
