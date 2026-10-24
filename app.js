@@ -229,8 +229,8 @@
     localStorage.removeItem(MR_LEVEL_KEY);
   }
   function isFormaToggleable(name, baseMr) {
-    // Only items listed as 4000 MP on the wiki (Kuva/Tenet/Coda) get the toggle
-    return baseMr === 4000;
+    // Items that can be forma'd: MR 40 (4000) and Necramechs (8000)
+    return baseMr === 4000 || baseMr === 8000;
   }
 
   // --- Process profile ---
