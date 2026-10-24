@@ -7,7 +7,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+// Restrict CORS for local use
+app.use(cors({ origin: ['http://localhost:3001', 'http://127.0.0.1:3001'] }));
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(__dirname));
 
@@ -30,28 +31,47 @@ async function getMasteryPoints() {
   if (masteryPromise) return masteryPromise;
   masteryPromise = (async () => {
     try {
-      const res = await fetch('https://wiki.warframe.com/api.php?action=query&prop=revisions&titles=Mastery_Rank_Checklist&rvprop=content&format=json');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      let res;
+      try {
+        res = await fetch('https://wiki.warframe.com/api.php?action=query&prop=revisions&titles=Mastery_Rank_Checklist&rvprop=content&format=json', { signal: controller.signal });
+      } finally {
+        clearTimeout(timeoutId);
+      }
       if (!res.ok) throw new Error(`wiki HTTP ${res.status}`);
       const data = await res.json();
       const pages = data.query.pages;
       const byName = new Map();
       for (const pid in pages) {
         const p = pages[pid];
-        const rev = p.revisions[0];
-        const content = rev['*'];
-        const pattern = /\|\s*\{\{(?:WF|Weapon|Companion|Item|Mod)\|([^}]+)\}\}.*?\|\|\s*\{\{StoreTableCell\|(\d+)\|Mastery Point\}\}/g;
-        const matches = content.matchAll(pattern);
-        for (const m of matches) {
-          const rawName = m[1].trim();
-          // Handle wiki format {{Weapon|DisplayName|LinkName}} - take first part
-          const name = rawName.split('|')[0].trim();
-          const points = parseInt(m[2], 10);
-          if (!byName.has(name)) {
-            byName.set(name, points);
+        const rev = p.revisions?.[0];
+        if (!rev) continue;
+        const content = rev['*'] || '';
+        // Try multiple patterns to be more flexible (includes Necramechs etc.)
+        const patterns = [
+          /\|\s*\{\{(?:WF|Weapon|Companion|Item|Mod|Warframe)\|([^}|]+)(?:\|[^}]+)*\}\}.*?\|\|\s*\{\{StoreTableCell\|(\d+)\|Mastery Point\}\}/g,
+          /\|\s*\[\[([^\]]+)\]\].*?\|\|\s*\{\{StoreTableCell\|(\d+)\|Mastery Point\}\}/g,
+          /\|\s*([A-Za-z0-9][A-Za-z0-9\s\-'()&]+)\b.*?data-store-value="(\d+)".*?Mastery Point/g
+        ];
+        for (const pattern of patterns) {
+          const matches = content.matchAll(pattern);
+          for (const m of matches) {
+            const rawName = (m[1] || '').trim();
+            const name = rawName.split('|')[0].trim().replace(/\[\[|\]\]/g, '');
+            const points = parseInt(m[2], 10);
+            if (name && !isNaN(points) && !byName.has(name)) {
+              byName.set(name, points);
+            }
           }
         }
       }
       masteryCache = byName;
+      return masteryCache;
+    } catch (err) {
+      console.error('getMasteryPoints failed:', err.message);
+      // Return empty map on failure; caller will fall back to WFCD/masteryReq
+      masteryCache = new Map();
       return masteryCache;
     } finally {
       masteryPromise = null;
@@ -67,7 +87,14 @@ async function getCatalog() {
     try {
       const byName = new Map();
       for (const filename of WFCD_FILES) {
-        const res = await fetch(`${WFCD_BASE}/${filename}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        let res;
+        try {
+          res = await fetch(`${WFCD_BASE}/${filename}`, { signal: controller.signal });
+        } finally {
+          clearTimeout(timeoutId);
+        }
         if (!res.ok) throw new Error(`catalog HTTP ${res.status} for ${filename}`);
         const data = await res.json();
         for (const it of data) {
@@ -75,6 +102,10 @@ async function getCatalog() {
         }
       }
       catalogCache = byName;
+      return catalogCache;
+    } catch (err) {
+      console.error('getCatalog failed:', err.message);
+      catalogCache = new Map();
       return catalogCache;
     } finally {
       catalogPromise = null;
@@ -100,8 +131,11 @@ app.get('/api/catalog', async (req, res) => {
       const relevantTypes = ['warframe', 'weapon', 'melee', 'pistol', 'rifle',
         'shotgun', 'bow', 'heavy', 'archwing', 'pet', 'sentinel', 'kavat', 'kubrow',
         'necramech', 'launcher', 'sniper', 'dual pistols', 'throwing', 'arch-gun',
-        'arch-melee', 'companion weapon', 'archwing', 'gear'];
-      if (!relevantTypes.includes(type)) continue;
+        'arch-melee', 'companion weapon', 'gear'];
+      if (!relevantTypes.includes(type)) {
+        // Include if it has mastery points (zaws, kitguns, amps, moas, hounds, k-drives, etc.)
+        if ((v.masteryReq || 0) <= 0) continue;
+      }
 
       // Merge Sirius & Orion / Orion & Sirius into a single entry
       let key = uniqueName;
@@ -149,7 +183,8 @@ app.get('/api/catalog', async (req, res) => {
     }
     res.json(slim);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch catalog', details: err.message });
+    console.error('GET /api/catalog error:', err);
+    res.status(500).json({ error: 'Failed to fetch catalog' });
   }
 });
 
@@ -157,18 +192,33 @@ app.get('/api/catalog', async (req, res) => {
 app.get('/api/market/orders/:slug', async (req, res) => {
   const { slug } = req.params;
   const platform = (req.query.platform || 'pc').toLowerCase();
+  const allowedPlatforms = ['pc', 'ps4', 'xb1', 'switch'];
+  if (!allowedPlatforms.includes(platform)) {
+    return res.status(400).json({ error: 'Invalid platform' });
+  }
+  if (!/^[a-z0-9_-]+$/.test(slug)) {
+    return res.status(400).json({ error: 'Invalid slug' });
+  }
   try {
-    const res2 = await fetch(
-      `https://api.warframe.market/v2/items/${slug}/orders`,
-      { headers: { 'Platform': platform, 'Language': 'en' } }
-    );
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    let res2;
+    try {
+      res2 = await fetch(
+        `https://api.warframe.market/v2/items/${encodeURIComponent(slug)}/orders`,
+        { headers: { 'Platform': platform, 'Language': 'en' }, signal: controller.signal }
+      );
+    } finally {
+      clearTimeout(timeoutId);
+    }
     if (!res2.ok) {
-      return res.status(res2.status).json({ error: `market HTTP ${res2.status}` });
+      return res.status(res2.status).json({ error: `market request failed` });
     }
     const data = await res2.json();
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: 'market fetch failed', details: err.message });
+    console.error('market fetch failed:', err.message);
+    res.status(500).json({ error: 'market fetch failed' });
   }
 });
 
@@ -220,7 +270,7 @@ function extractXPInfo(profileData) {
 
 // Accept a profile.json upload as raw JSON
 app.post('/api/upload/json', (req, res) => {
-  if (!req.body || Object.keys(req.body).length === 0) {
+  if (!req.body || typeof req.body !== 'object' || Object.keys(req.body).length === 0) {
     return res.status(400).json({ error: 'No profile data received' });
   }
   uploadedProfile = req.body;
@@ -247,31 +297,52 @@ app.get('/api/profile', async (req, res) => {
 // Falls back to local profile when API is unavailable
 app.get('/api/warframe/profile', async (req, res) => {
   const { playerId, platform } = req.query;
-  if (!playerId) {
+  if (!playerId || typeof playerId !== 'string') {
     return res.status(400).json({ error: 'playerId is required' });
   }
+  // Basic validation
+  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(playerId)) {
+    return res.status(400).json({ error: 'Invalid playerId' });
+  }
+  const plat = (platform || 'pc').toLowerCase();
+  const allowedPlatforms = ['pc', 'ps4', 'xb1', 'switch'];
+  if (!allowedPlatforms.includes(plat)) {
+    return res.status(400).json({ error: 'Invalid platform' });
+  }
   try {
-    const apiRes = await fetch(
-      `https://api.warframe.com/cdn/getProfileViewingData.php?playerId=${encodeURIComponent(playerId)}&platform=${platform || 'pc'}`,
-      { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; WarframeMasteryTracker/1.0)' } }
-    );
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    let apiRes;
+    try {
+      apiRes = await fetch(
+        `https://api.warframe.com/cdn/getProfileViewingData.php?playerId=${encodeURIComponent(playerId)}&platform=${plat}`,
+        { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; WarframeMasteryTracker/1.0)' }, signal: controller.signal }
+      );
+    } finally {
+      clearTimeout(timeoutId);
+    }
     if (!apiRes.ok) {
       // Try fallback to local profile for 403/409/429 errors (API blocked/rate limited)
       if ([403, 409, 429].includes(apiRes.status)) {
-      const data = await import('./profile.json', { with: { type: 'json' } });
-      const extracted = extractXPInfo(data.default);
-      return res.json({ 
-        XPInfo: extracted.XPInfo,
-        DisplayName: extracted.DisplayName,
-        _fallback: true,
-        _fallbackReason: `Warframe API returned ${apiRes.status} - using local profile data`
-      });
+        try {
+          const data = await import('./profile.json', { with: { type: 'json' } });
+          const extracted = extractXPInfo(data.default);
+          return res.json({ 
+            XPInfo: extracted.XPInfo,
+            DisplayName: extracted.DisplayName,
+            _fallback: true,
+            _fallbackReason: `Warframe API returned ${apiRes.status}`
+          });
+        } catch (e) {
+          return res.status(502).json({ error: 'Upstream API error' });
+        }
       }
-      return res.status(apiRes.status).json({ error: 'Warframe API fetch failed', details: apiRes.statusText });
+      return res.status(apiRes.status).json({ error: 'Warframe API fetch failed' });
     }
     const data = await apiRes.json();
     res.json(extractXPInfo(data));
   } catch (err) {
+    console.error('warframe/profile error:', err.message);
     // Fallback to local profile on network errors
     try {
       const data = await import('./profile.json', { with: { type: 'json' } });
@@ -280,10 +351,10 @@ app.get('/api/warframe/profile', async (req, res) => {
         XPInfo: extracted.XPInfo,
         DisplayName: extracted.DisplayName,
         _fallback: true,
-        _fallbackReason: 'Network error - using local profile data'
+        _fallbackReason: 'Network error'
       });
     } catch (fallbackErr) {
-      res.status(500).json({ error: 'Warframe API fetch error', details: err.message, fallbackError: fallbackErr.message });
+      res.status(500).json({ error: 'Warframe API fetch error' });
     }
   }
 });
