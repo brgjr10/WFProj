@@ -379,6 +379,41 @@
         });
       }
     }
+    // Fallback: any owned pet-like item not in catalog gets added as manual (6000 MR)
+    if (ownedMap) {
+      for (const [ownedKey] of ownedMap) {
+        if (!ownedKey) continue;
+        const lower = ownedKey.toLowerCase();
+        if (lower.includes('kubrow') || lower.includes('kavat') || lower.includes('predasite') || 
+            lower.includes('vulpaphyla') || lower.includes('moa') || lower.includes('hound') ||
+            lower.includes('helminthcharger') || lower.includes('catbrow')) {
+          if (!state.items.find(i => i.itemType === ownedKey)) {
+            let name = ownedKey.split('/').pop().replace(/PetPowerSuit|PowerSuit|Pet/gi, '').replace(/MoaPetParts|MoaPetComponents/gi, '');
+            // Clean up name
+            name = name.replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').replace(/([a-z\d])([A-Z])/g, '$1 $2');
+            name = name.trim() + ' (Manual)';
+            state.items.push({
+              name: name,
+              type: 'Pet',
+              mr: 6000,
+              baseMr: 6000,
+              owned: true,
+              itemType: ownedKey,
+              xp: ownedMap.get(ownedKey) || 0,
+              imageName: null,
+              wikiaUrl: null,
+              imageUrl: null,
+              imageFallbackUrl: null,
+              isPrime: false,
+              masteryReq: 6000,
+              isFormaToggleable: false,
+              mrLevel: 'base',
+              manual: true,
+            });
+          }
+        }
+      }
+    }
   }
 
   // --- Render summary stats ---
