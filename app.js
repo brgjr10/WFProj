@@ -305,6 +305,43 @@
         mrLevel: mrLevels[itemType] || 'base',
       };
     });
+    
+    // Add manual companions if owned but not in catalog
+    const manualCompanions = [
+      { uniqueName: '/Lotus/Types/Game/KubrowPet/ChargerKubrowPetPowerSuit', name: 'Charger Kubrow (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Game/KubrowPet/RetrieverKubrowPetPowerSuit', name: 'Retriever Kubrow (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Game/KubrowPet/FurtiveKubrowPetPowerSuit', name: 'Furtive Kubrow (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Game/KubrowPet/GuardKubrowPetPowerSuit', name: 'Guard Kubrow (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Game/KubrowPet/HunterKubrowPetPowerSuit', name: 'Hunter Kubrow (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Game/KubrowPet/AdventurerKubrowPetPowerSuit', name: 'Adventurer Kubrow (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Powersuits/Khora/Kavat/KhoraKavatPowerSuit', name: 'Venari (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Powersuits/Khora/Kavat/KhoraPrimeKavatPowerSuit', name: 'Venari Prime (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/CreaturePets/PharaohPredatorKubrowPetPowerSuit', name: 'Pharaoh Predasite (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/CreaturePets/VizierPredatorKubrowPetPowerSuit', name: 'Vizier Predasite (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/CreaturePets/MedjayPredatorKubrowPetPowerSuit', name: 'Medjay Predasite (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+    ];
+    for (const comp of manualCompanions) {
+      if (ownedMap.has(comp.uniqueName) && !state.items.find(i => i.itemType === comp.uniqueName)) {
+        state.items.push({
+          name: comp.name,
+          type: comp.type,
+          mr: comp.mr,
+          baseMr: comp.mr,
+          owned: true,
+          itemType: comp.uniqueName,
+          xp: ownedMap.get(comp.uniqueName) || 0,
+          imageName: null,
+          wikiaUrl: null,
+          imageUrl: null,
+          imageFallbackUrl: null,
+          isPrime: false,
+          masteryReq: comp.masteryReq,
+          isFormaToggleable: false,
+          mrLevel: 'base',
+          manual: true,
+        });
+      }
+    }
   }
 
   // --- Render summary stats ---
@@ -399,7 +436,7 @@
           : '<span class="badge missing">Missing</span>';
         html += '<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px;text-align:center;">' +
           imgHtml +
-          '<div style="margin:8px 0;font-weight:600;font-size:14px;">' + (item.wikiaUrl ? '<a class="item-name-link" href="' + item.wikiaUrl + '" target="_blank" rel="noopener">' + escapeHtml(item.name) + '</a>' : escapeHtml(item.name)) + '</div>' +
+          '<div style="margin:8px 0;font-weight:600;font-size:14px;">' + (item.wikiaUrl ? '<a class="item-name-link" href="' + item.wikiaUrl + '" target="_blank" rel="noopener">' + escapeHtml(item.name) + '</a>' : escapeHtml(item.name) + (item.manual ? ' <span style="color:#d29922;font-size:10px;">[MANUAL]</span>' : '')) + '</div>' +
           '<div style="font-size:11px;color:#8b949e;">' + escapeHtml(item.type) + '</div>' +
           '<div style="margin-top:6px;font-size:12px;">MR ' + item.mr.toLocaleString() + '</div>' +
           '<div style="margin-top:4px;">' + badge + '</div>' +
@@ -426,7 +463,7 @@
           : '<span class="item-icon ' + (item.type?.toLowerCase().split(' ')[0] || '') + '" title="' + escapeHtml(item.type) + '"></span>';
         const nameHtml = item.wikiaUrl
           ? '<a class="item-name-link" href="' + item.wikiaUrl + '" target="_blank" rel="noopener">' + escapeHtml(item.name) + '</a>'
-          : escapeHtml(item.name);
+          : escapeHtml(item.name) + (item.manual ? ' <span style="color:#d29922;font-size:10px;">[MANUAL]</span>' : '');
         const primeTag = item.isPrime && !item.name.toLowerCase().includes("prime") ? '<span class="prime-tag">Prime</span>' : '';
         const masteryHtml = item.owned
           ? '<span class="mastery-text">MR ' + item.mr.toLocaleString() + '</span>'
