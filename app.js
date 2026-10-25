@@ -229,8 +229,8 @@
     localStorage.removeItem(MR_LEVEL_KEY);
   }
   function isFormaToggleable(name, baseMr) {
-    // Items that can be forma'd: MR 40 (4000) and Necramechs (8000)
-    return baseMr === 4000 || baseMr === 8000;
+    // Only regular weapons (base 3000) can be forma'd to reach MR 40
+    return baseMr === 3000;
   }
 
   // --- Process profile ---
