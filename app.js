@@ -352,6 +352,10 @@
       { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/ParaMoaPetPowerSuit', name: 'Para Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/NychusMoaPetPowerSuit', name: 'Nychus Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/MoaPetPowerSuit', name: 'Lambeo Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/MoaPetParts/MoaPetHeadOloro', name: 'Oloro Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/MoaPetParts/MoaPetHeadPara', name: 'Para Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/MoaPetParts/MoaPetHeadLambeo', name: 'Lambeo Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/MoaPetParts/MoaPetHeadMelee', name: 'Nychus Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
     ];
     for (const comp of manualCompanions) {
       if (ownedMap.has(comp.uniqueName) && !state.items.find(i => i.itemType === comp.uniqueName)) {
