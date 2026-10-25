@@ -278,9 +278,9 @@ app.get('/api/catalog', async (req, res) => {
     try {
       const checklistPoints = await loadChecklistMastery();
       for (const [key, mp] of checklistPoints) {
-        if (merged.has(key) || merged.has(key.replace(/\s+/g, ''))) continue;
+        if (merged.has(key)) continue;
         // Skip if it's a node or unlock
-        if (key.startsWith('SolNode') || key.includes('Unlock') || key.includes('Deploy')) continue;
+        if (key.startsWith('SolNode') || key.includes('Unlock') || key.includes('Deploy') || key.includes('Tactical')) continue;
         // Check if we already have by name
         let exists = false;
         for (const item of merged.values()) {
@@ -291,8 +291,12 @@ app.get('/api/catalog', async (req, res) => {
         merged.set(key, {
           uniqueName: key,
           name: key,
-          type: key.includes('Strike') || key.includes('Zaw') ? 'Melee' : 
-                key.includes('Gun') && !key.includes('Companion') ? 'Rifle' :
+          type: key.includes('Strike') || key.toLowerCase().includes('zaw') ? 'Melee' : 
+                (key.toLowerCase().includes('kitgun') || key.toLowerCase().includes('catchmoon') || key.toLowerCase().includes('gaze') || key.toLowerCase().includes('rattleguts') || key.toLowerCase().includes('sporelacer') || key.toLowerCase().includes('tombfinger') || key.toLowerCase().includes('vermisplicer')) ? 'Rifle' :
+                (key.toLowerCase().includes('amp') || key.toLowerCase().includes('prism')) ? 'Pistol' :
+                (key.toLowerCase().includes('moa')) ? 'Pet' :
+                (key.toLowerCase().includes('hound')) ? 'Pet' :
+                (key.toLowerCase().includes('k-drive') || key.toLowerCase().includes('bad baby') || key.toLowerCase().includes('feverspine') || key.toLowerCase().includes('flatbelly') || key.toLowerCase().includes('needlenose') || key.toLowerCase().includes('runway')) ? 'Archwing' :
                 'Weapon',
           masteryLevel: mp,
           masteryReq: mp,
