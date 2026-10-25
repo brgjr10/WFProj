@@ -319,6 +319,26 @@
       { uniqueName: '/Lotus/Types/Friendly/Pets/CreaturePets/PharaohPredatorKubrowPetPowerSuit', name: 'Pharaoh Predasite (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/CreaturePets/VizierPredatorKubrowPetPowerSuit', name: 'Vizier Predasite (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/CreaturePets/MedjayPredatorKubrowPetPowerSuit', name: 'Medjay Predasite (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      // Additional missing beasts/hounds/moas/kavats/vulpaphylas
+      { uniqueName: '/Lotus/Types/Friendly/Pets/CatbrowPet/AdarzaCatbrowPetPowerSuit', name: 'Adarza Kavat (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/CatbrowPet/SmeetaCatbrowPetPowerSuit', name: 'Smeeta Kavat (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/CatbrowPet/VascaCatbrowPetPowerSuit', name: 'Vasca Kavat (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/Vulpaphyla/VulpaphylaSlyPowerSuit', name: 'Sly Vulpaphyla (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/Vulpaphyla/VulpaphylaCrescentPowerSuit', name: 'Crescent Vulpaphyla (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/Vulpaphyla/VulpaphylaPanzerPowerSuit', name: 'Panzer Vulpaphyla (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Game/KubrowPet/ChesaKubrowPetPowerSuit', name: 'Chesa Kubrow (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Game/KubrowPet/HurasKubrowPetPowerSuit', name: 'Huras Kubrow (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Game/KubrowPet/RaksaKubrowPetPowerSuit', name: 'Raksa Kubrow (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Game/KubrowPet/SahasaKubrowPetPowerSuit', name: 'Sahasa Kubrow (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Game/KubrowPet/SunikaKubrowPetPowerSuit', name: 'Sunika Kubrow (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/HelminthCharger/HelminthChargerPowerSuit', name: 'Helminth Charger (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/Hounds/HoundBhairaPowerSuit', name: 'Bhaira Hound (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/Hounds/HoundDormaPowerSuit', name: 'Dorma Hound (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/Hounds/HoundHecPowerSuit', name: 'Hec Hound (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/LambeoMoaPetPowerSuit', name: 'Lambeo Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/OloroMoaPetPowerSuit', name: 'Oloro Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/ParaMoaPetPowerSuit', name: 'Para Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/NychusMoaPetPowerSuit', name: 'Nychus Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
     ];
     for (const comp of manualCompanions) {
       if (ownedMap.has(comp.uniqueName) && !state.items.find(i => i.itemType === comp.uniqueName)) {
