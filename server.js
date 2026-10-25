@@ -29,25 +29,54 @@ let masteryPromise = null;
 let checklistCache = null;
 let checklistPromise = null;
 
-// Load mastery points from local checklist HTML files
+// Load mastery points from wiki page
 async function loadChecklistMastery() {
   if (checklistCache) return checklistCache;
   if (checklistPromise) return checklistPromise;
   checklistPromise = (async () => {
     try {
-      const checklistPaths = [
-        '/home/brgjr10/warframe-mastery-tracker/Mastery Rank Checklist - WARFRAME Wiki.html',
-        '/home/brgjr10/zimaserver/ZimaOS-HD/AppData/Projects/WFProj/Mastery Rank Checklist - WARFRAME Wiki.html'
-      ];
       const byName = new Map();
-      for (const p of checklistPaths) {
-        try {
-          if (!fs.existsSync(p)) continue;
-          const html = fs.readFileSync(p, 'utf8');
+      // Try fetching from wiki directly
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const res = await fetch('https://wiki.warframe.com/wiki/Mastery_Rank_Checklist?action=raw', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const text = await res.text();
+          // Parse wikitext patterns
+          const patterns = [
+            /\|\s*\[\[([^\]]+)\]\].*?\|\|\s*\{\{StoreTableCell\|(\d+)\|Mastery Point\}\}/g,
+            /\|\s*\{\{[^\|]+\|([^\}|]+)[^\}]*\}\}.*?\|\|\s*\{\{StoreTableCell\|(\d+)\|Mastery Point\}\}/g,
+          ];
+          for (const pattern of patterns) {
+            const matches = text.matchAll(pattern);
+            for (const m of matches) {
+              const rawName = (m[1] || '').trim();
+              const name = rawName.split('|')[0].trim().replace(/\[\[|\]\]/g, '');
+              const points = parseInt(m[2], 10);
+              if (name && !isNaN(points) && points > 0 && !byName.has(name)) {
+                byName.set(name, points);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch wiki raw:', e.message);
+      }
+      // Also try to fetch the page and parse
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const res = await fetch('https://wiki.warframe.com/wiki/Mastery_Rank_Checklist', { signal: controller.signal, headers: { 'User-Agent': 'WarframeMasteryTracker/1.0' } });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const html = await res.text();
           const $ = load(html);
           $('tr[data-rowid]').each((_, tr) => {
             const rowid = $(tr).attr('data-rowid');
             if (!rowid || rowid.startsWith('SolNode')) return;
+            if (['Planet', 'Unlock', 'Deploy', 'Tactical', 'Strike', 'Abilities', 'Pulse', 'Weaponmaster', 'Synergy', 'Mass', 'Decrees', 'Crews', 'Blink', 'Neural', 'Adrenaline', 'On Call', 'Elite Crewmates', 'Deadly Decrees', 'Transference Sync', 'Swifter Strike', 'Swifter Abilities', 'Muscle Mass'].includes(rowid)) return;
             const mpCell = $(tr).find('td[data-store-currency="Mastery Point"]').first();
             if (!mpCell.length) return;
             const mpText = mpCell.text().replace(/,/g, '');
@@ -55,22 +84,21 @@ async function loadChecklistMastery() {
             if (!mpMatch) return;
             const mp = parseInt(mpMatch[1], 10);
             if (mp <= 0) return;
-            // Get name
             const nameCell = $(tr).find('td').first();
             const link = nameCell.find('a').first();
             let name = link.text().trim() || nameCell.text().trim();
+            if (typeof name !== 'string') name = String(name);
             name = name.replace(/\[.*\]/, '').replace(/\s+/g, ' ').trim();
-            if (name && !byName.has(name)) {
+            if (name && name.length > 0 && !name.startsWith('Rank') && !name.startsWith('Deploy') && !byName.has(name)) {
               byName.set(name, mp);
             }
-            // Also map by rowid
-            if (!byName.has(rowid)) {
+            if (rowid && !byName.has(rowid)) {
               byName.set(rowid, mp);
             }
           });
-        } catch (e) {
-          console.error('Failed to load checklist:', p, e.message);
         }
+      } catch (e) {
+        console.error('Failed to fetch wiki page:', e.message);
       }
       checklistCache = byName;
       return checklistCache;
