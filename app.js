@@ -323,6 +323,12 @@
       { uniqueName: '/Lotus/Types/Friendly/Pets/CatbrowPet/AdarzaCatbrowPetPowerSuit', name: 'Adarza Kavat (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/CatbrowPet/SmeetaCatbrowPetPowerSuit', name: 'Smeeta Kavat (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/CatbrowPet/VascaCatbrowPetPowerSuit', name: 'Vasca Kavat (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/CatbrowPet/CheshireCatbrowPetPowerSuit', name: 'Adarza Kavat (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/CatbrowPet/MirrorCatbrowPetPowerSuit', name: 'Smeeta Kavat (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/CatbrowPet/VampireCatbrowPetPowerSuit', name: 'Vasca Kavat (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/CatbrowPet/ArmoredInfestedCatbrowPetPowerSuit', name: 'Adarza Kavat (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/CatbrowPet/VulpineInfestedCatbrowPetPowerSuit', name: 'Smeeta Kavat (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/CatbrowPet/HornedInfestedCatbrowPetPowerSuit', name: 'Vasca Kavat (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/Vulpaphyla/VulpaphylaSlyPowerSuit', name: 'Sly Vulpaphyla (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/Vulpaphyla/VulpaphylaCrescentPowerSuit', name: 'Crescent Vulpaphyla (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/Vulpaphyla/VulpaphylaPanzerPowerSuit', name: 'Panzer Vulpaphyla (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
@@ -339,6 +345,7 @@
       { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/OloroMoaPetPowerSuit', name: 'Oloro Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/ParaMoaPetPowerSuit', name: 'Para Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/NychusMoaPetPowerSuit', name: 'Nychus Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/MoaPetPowerSuit', name: 'Lambeo Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
     ];
     for (const comp of manualCompanions) {
       if (ownedMap.has(comp.uniqueName) && !state.items.find(i => i.itemType === comp.uniqueName)) {
