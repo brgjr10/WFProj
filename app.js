@@ -319,7 +319,6 @@
       { uniqueName: '/Lotus/Types/Friendly/Pets/CreaturePets/PharaohPredatorKubrowPetPowerSuit', name: 'Pharaoh Predasite (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/CreaturePets/VizierPredatorKubrowPetPowerSuit', name: 'Vizier Predasite (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/CreaturePets/MedjayPredatorKubrowPetPowerSuit', name: 'Medjay Predasite (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
-      // Additional missing beasts/hounds/moas/kavats/vulpaphylas
       { uniqueName: '/Lotus/Types/Friendly/Pets/CatbrowPet/AdarzaCatbrowPetPowerSuit', name: 'Adarza Kavat (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/CatbrowPet/SmeetaCatbrowPetPowerSuit', name: 'Smeeta Kavat (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/CatbrowPet/VascaCatbrowPetPowerSuit', name: 'Vasca Kavat (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
@@ -356,6 +355,11 @@
       { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/MoaPetParts/MoaPetHeadPara', name: 'Para Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/MoaPetParts/MoaPetHeadLambeo', name: 'Lambeo Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
       { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/MoaPetParts/MoaPetHeadMelee', name: 'Nychus Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/MoaPetComponents/HextraWeapon', name: 'Lambeo Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/MoaPetComponents/CryoxionWeapon', name: 'Oloro Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/MoaPetComponents/TazronWeapon', name: 'Para Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/MoaPetComponents/ThermocorMoaWeapon', name: 'Nychus Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
+      { uniqueName: '/Lotus/Types/Friendly/Pets/MoaPets/MoaPetComponents/SwarmerWeapon', name: 'Nychus Moa (Manual)', type: 'Pet', mr: 6000, masteryReq: 6000 },
     ];
     for (const comp of manualCompanions) {
       if (ownedMap.has(comp.uniqueName) && !state.items.find(i => i.itemType === comp.uniqueName)) {
@@ -381,6 +385,22 @@
     }
     // Fallback: any owned pet-like item not in catalog gets added as manual (6000 MR)
     if (ownedMap) {
+      const nameMap = {
+        'ChargerKubrow': 'Charger Kubrow', 'RetrieverKubrow': 'Retriever Kubrow', 'FurtiveKubrow': 'Furtive Kubrow',
+        'GuardKubrow': 'Guard Kubrow', 'HunterKubrow': 'Hunter Kubrow', 'AdventurerKubrow': 'Adventurer Kubrow',
+        'ChesaKubrow': 'Chesa Kubrow', 'HurasKubrow': 'Huras Kubrow', 'RaksaKubrow': 'Raksa Kubrow',
+        'SahasaKubrow': 'Sahasa Kubrow', 'SunikaKubrow': 'Sunika Kubrow', 'HelminthCharger': 'Helminth Charger',
+        'KhoraKavat': 'Venari', 'KhoraPrimeKavat': 'Venari Prime',
+        'PharaohPredator': 'Pharaoh Predasite', 'VizierPredator': 'Vizier Predasite', 'MedjayPredator': 'Medjay Predasite',
+        'AdarzaCatbrow': 'Adarza Kavat', 'SmeetaCatbrow': 'Smeeta Kavat', 'VascaCatbrow': 'Vasca Kavat',
+        'CheshireCatbrow': 'Adarza Kavat', 'MirrorCatbrow': 'Smeeta Kavat', 'VampireCatbrow': 'Vasca Kavat',
+        'ArmoredInfestedCatbrow': 'Adarza Kavat', 'VulpineInfestedCatbrow': 'Smeeta Kavat', 'HornedInfestedCatbrow': 'Vasca Kavat',
+        'VulpaphylaSly': 'Sly Vulpaphyla', 'VulpaphylaCrescent': 'Crescent Vulpaphyla', 'VulpaphylaPanzer': 'Panzer Vulpaphyla',
+        'BhairaHound': 'Bhaira Hound', 'DormaHound': 'Dorma Hound', 'HecHound': 'Hec Hound',
+        'LambeoMoa': 'Lambeo Moa', 'OloroMoa': 'Oloro Moa', 'ParaMoa': 'Para Moa', 'NychusMoa': 'Nychus Moa',
+        'MoaPetHeadOloro': 'Oloro Moa', 'MoaPetHeadPara': 'Para Moa', 'MoaPetHeadLambeo': 'Lambeo Moa', 'MoaPetHeadMelee': 'Nychus Moa',
+        'HextraWeapon': 'Lambeo Moa', 'CryoxionWeapon': 'Oloro Moa', 'TazronWeapon': 'Para Moa', 'ThermocorMoaWeapon': 'Nychus Moa', 'SwarmerWeapon': 'Nychus Moa',
+      };
       for (const [ownedKey] of ownedMap) {
         if (!ownedKey) continue;
         const lower = ownedKey.toLowerCase();
@@ -388,27 +408,16 @@
             lower.includes('vulpaphyla') || lower.includes('moa') || lower.includes('hound') ||
             lower.includes('helminthcharger') || lower.includes('catbrow')) {
           if (!state.items.find(i => i.itemType === ownedKey)) {
-            let name = ownedKey.split('/').pop().replace(/PetPowerSuit|PowerSuit|Pet/gi, '').replace(/MoaPetParts|MoaPetComponents/gi, '');
-            // Clean up name
-            name = name.replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').replace(/([a-z\d])([A-Z])/g, '$1 $2');
-            name = name.trim() + ' (Manual)';
+            let foundName = null;
+            for (const [key, val] of Object.entries(nameMap)) {
+              if (ownedKey.includes(key)) { foundName = val; break; }
+            }
+            let name = foundName || (ownedKey.split('/').pop().replace(/PetPowerSuit|PowerSuit|Pet|MoaPetParts|MoaPetComponents/gi, '').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').replace(/([a-z\d])([A-Z])/g, '$1 $2').trim());
+            name = name + ' (Manual)';
             state.items.push({
-              name: name,
-              type: 'Pet',
-              mr: 6000,
-              baseMr: 6000,
-              owned: true,
-              itemType: ownedKey,
-              xp: ownedMap.get(ownedKey) || 0,
-              imageName: null,
-              wikiaUrl: null,
-              imageUrl: null,
-              imageFallbackUrl: null,
-              isPrime: false,
-              masteryReq: 6000,
-              isFormaToggleable: false,
-              mrLevel: 'base',
-              manual: true,
+              name: name, type: 'Pet', mr: 6000, baseMr: 6000, owned: true, itemType: ownedKey,
+              xp: ownedMap.get(ownedKey) || 0, imageName: null, wikiaUrl: null, imageUrl: null, imageFallbackUrl: null,
+              isPrime: false, masteryReq: 6000, isFormaToggleable: false, mrLevel: 'base', manual: true,
             });
           }
         }
